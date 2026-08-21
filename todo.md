@@ -38,7 +38,7 @@
 - [x] Replace purple CTA styling with a cohesive non-purple button palette across the storefront and member experience.
 - [x] Rewrite storefront headlines, captions, CTA labels, and member-facing copy with a unified Thai conversion voice.
 - [x] Add automated coverage for member dashboard states and verify desktop/mobile layouts.
-- [ ] Update handoff documentation and push the feature branch to GitHub for review and rollback safety.
+- [x] Update handoff documentation and push the feature branch to GitHub for review and rollback safety.
 - [x] Define the shared lime–emerald CTA style used by member Dashboard actions.
 - [x] Add UI-focused member Dashboard tests for empty, purchased-content, and direct-access states.
 - [x] Add component-level dashboard tests for empty content, purchased cards/history, and read/learn links.
