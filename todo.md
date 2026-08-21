@@ -25,5 +25,5 @@
 - [x] Implement true scroll-triggered reveal behavior with a reduced-motion fallback.
 - [x] Add automated verification for the scroll-reveal helper.
 - [x] Add an IntersectionObserver integration test for scroll reveal and observer cleanup.
-- [ ] Sync the latest project files into the GitHub working copy and push the administrator, Thai storefront, security, test, and handoff updates.
-- [ ] Verify the GitHub working copy and remote HEAD include the new commit and updated files.
+- [x] Sync the latest project files into the GitHub working copy and push the administrator, Thai storefront, security, test, and handoff updates.
+- [x] Verify the GitHub working copy and remote HEAD include the new commit and updated files.
