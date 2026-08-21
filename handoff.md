@@ -10,10 +10,11 @@
 
 | ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic hero ที่สื่อความสำเร็จจากการเรียนรู้อย่างต่อเนื่อง, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
-| Social proof | โครง section สำหรับผลลัพธ์/รีวิวของผู้เรียนที่ยืนยันและยินยอมแล้วเท่านั้น โดยไม่มีข้อมูลตัวอย่างหรือคำยืนยันที่สร้างขึ้น | `client/src/pages/homeContent.ts`, `client/src/pages/Home.tsx` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic private-jet hero ที่สื่อความสำเร็จจากการเรียนรู้อย่างต่อเนื่อง, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
+| Social proof | แสดง feedback เฉพาะผู้เรียนที่ซื้อจริง, ยินยอม และผ่านการอนุมัติแล้ว; หากยังไม่มีข้อมูลจะใช้ empty state ที่โปร่งใส โดยไม่มีข้อมูลตัวอย่างหรือคำยืนยันที่สร้างขึ้น | `client/src/pages/homeContent.ts`, `client/src/pages/Home.tsx`, `server/routers.ts` |
+| Testimonial moderation | ผู้เรียนส่ง feedback จากสินค้าที่ตนซื้อพร้อม consent; admin เปลี่ยนสถานะเป็น `approved`, `hidden`, `rejected` หรือ `pending` ได้ | `testimonials`, `client/src/pages/MemberDashboard.tsx`, `client/src/pages/Admin.tsx` |
 | สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
-| หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้า ราคา หน้าปก เนื้อหา JSON และดู entitlement ที่ชำระแล้ว | `client/src/pages/Admin.tsx`, `server/routers.ts` |
+| หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้า ราคา หน้าปก เนื้อหา JSON, ดู entitlement ที่ชำระแล้ว และกลั่นกรอง testimonial จริง | `client/src/pages/Admin.tsx`, `server/routers.ts` |
 | รูปหน้าปก | อัปโหลดผ่าน server เฉพาะ admin, จำกัด MIME และขนาดไฟล์ | `admin.uploadCover`, `server/storage.ts` |
 | สมาชิก | Manus OAuth และ signed session cookie | `server/_core/`, `client/src/_core/hooks/useAuth.ts` |
 | Dashboard สมาชิก | สรุป entitlement, เข้า eBook/คอร์สโดยตรง และดูประวัติคำสั่งซื้อของบัญชีตนเอง | `client/src/pages/MemberDashboard.tsx`, `/dashboard` |
@@ -67,8 +68,9 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 
 | Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
-| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset ที่ export จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area |
+| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset private-jet จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area; social proof ต้อง query ได้เพียง approved+consented feedback |
 | `client/src/pages/homeContent.ts` | hero asset และ copy/structure ของ social proof | เก็บ URL hero ใหม่และ social-proof disclosure ให้เป็น pure content ที่ test ได้; ห้ามใส่ชื่อ, คำพูด, rating, outcome metric หรือข้อมูลตัวอย่างที่อาจถูกมองเป็นรีวิวจริง |
+| `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิกและ form ส่ง feedback | รับ feedback เฉพาะจากสินค้าที่ซื้อ; ต้องติ๊ก consent ก่อนส่ง; สิ่งที่ผู้ใช้ส่งใหม่กลับสู่ `pending` เสมอ |
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
 | `client/src/pages/Admin.tsx` | หลังบ้านสินค้าและคำสั่งซื้อ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง |
 | `client/src/pages/Library.tsx` | คลังส่วนตัว | แสดงเฉพาะ entitlement ของ current user |
@@ -85,6 +87,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | `server/routers.ts` | catalog, checkout, library, admin tRPC APIs | ทุก mutation ต้องผ่าน Zod และ procedure ที่เหมาะสม |
 | `server/stripe.ts` | Stripe checkout creation | ห้ามรับราคา, currency หรือ description จาก browser |
 | `server/stripeWebhook.ts` | signature verification และ entitlement fulfillment | คง raw-body route ordering เสมอ |
+| `testimonials` / testimonial helpers | feedback จากผู้ซื้อจริงและ moderation status | public query ต้อง filter `status = approved` และ `consentToPublish = true`; ห้าม seed หรือ hardcode testimonial |
 | `server/security.ts` | per-user mutation limiter | เป็น in-process limit; production ควรเสริม WAF/provider rate limiting |
 | `server/_core/index.ts` | Express headers, parser limits, origin guard, route mounting | อย่าสลับลำดับ Stripe raw route กับ JSON parser |
 | `handoff.md` | คู่มือระบบ | อัปเดตทุกครั้งที่เปลี่ยน payment, auth, access หรือ deploy behavior |
@@ -98,6 +101,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | `store_products` | `coverUrl`, `coverKey`, `content` | metadata รูปปกและ paid content; `content` ห้ามคืนจาก public catalog |
 | `purchases` | `userId`, `productId` | entitlement: สมาชิกนี้เปิดสินค้านี้ได้ |
 | `purchases` | `stripeCheckoutSessionId`, `stripePaymentIntentId` | identifiers ที่จำเป็นต่อ reconciliation โดยไม่คัดลอกข้อมูลบัตรหรือ transaction ledger |
+| `testimonials` | `userId`, `productId`, `displayName`, `feedback`, `consentToPublish`, `status` | feedback ต่อผู้ซื้อ/สินค้าหนึ่งรายการ; ไม่ public จนได้รับ consent และ admin อนุมัติ |
 
 `purchases` มี unique combinations ที่ช่วยให้ webhook retry เป็น idempotent และไม่ปลดล็อกสิทธิ์ซ้ำสำหรับสินค้า/checkout session เดิม
 
@@ -163,6 +167,7 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 | spam/abuse | API IP window, checkout/admin per-user windows | production ควรเปิด WAF/rate limits ของ hosting เพิ่ม |
 | cross-site mutation | same-origin check สำหรับ state-changing tRPC requests | webhook อยู่ก่อน guard และตรวจ Stripe signature เอง |
 | oversized upload | 5 MB JSON cap, 3 MB raw image cap, allowed MIME | uploads ผ่าน admin only |
+| รีวิวปลอมหรือเผยแพร่โดยไม่ยินยอม | submit ต้องผ่าน purchase entitlement + explicit consent; public query filter approved/consented; adminProcedure คุม moderation | ห้าม seed/mock/hardcode testimonial, rating หรือ outcome metric ใน code/fixtures/copy |
 | clickjacking/unsafe browser features | CSP, X-Frame-Options, Permissions-Policy | production ใช้ `frame-ancestors 'none'` และ `X-Frame-Options: DENY`; development allowlist เฉพาะ `manus.im`/`manus.com` เพื่อให้ Managed Preview แสดงผลได้ |
 | insecure transport | `Strict-Transport-Security` เฉพาะ production | hosting ต้อง serve HTTPS |
 
@@ -178,7 +183,7 @@ Manus Preview ต้อง render เว็บไซต์ใน managed frame �
 
 หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน และใช้ภาพผู้บริหารที่ประสบความสำเร็จแต่ยังพัฒนาตัวเองอย่างต่อเนื่องเพื่อทำให้ปลายทางดูจับต้องได้ eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
 
-ส่วน “ผลลัพธ์จากผู้เรียน” ใช้หลัก **social proof ที่รอหลักฐาน ไม่ใช่การสร้างหลักฐาน**: ช่วงเริ่มต้นจะแสดงสถานะเปิดรับผลลัพธ์จริงและขั้นตอนเรียน → สะท้อนผล → อนุญาตเผยแพร่เท่านั้น ห้ามเติม quote, ชื่อบุคคล, คะแนนดาว, ตัวเลขผลลัพธ์ หรือ testimonial จำลองไม่ว่ากรณีใด เมื่อมีข้อมูลจริง ให้บันทึกแหล่งที่มา/วันยินยอม/ขอบเขตการอนุญาตก่อนแสดงผล และรักษา disclosure ให้มองเห็นได้ชัดเจน
+ส่วน “ผลลัพธ์จากผู้เรียน” ใช้หลัก **social proof ที่รอหลักฐาน ไม่ใช่การสร้างหลักฐาน**: สมาชิกส่ง feedback ได้เฉพาะสินค้าที่มี entitlement และต้องติ๊ก consent ที่ชัดเจนทุกครั้ง ผลงานใหม่เข้า `pending` และแสดงในหลังบ้านให้ admin อนุมัติ, ซ่อน, ปฏิเสธ หรือส่งกลับเป็นรอตรวจ เมื่อ public API จะคืนเฉพาะ `approved` + `consentToPublish = true` เท่านั้น ห้ามเติม quote, ชื่อบุคคล, คะแนนดาว, ตัวเลขผลลัพธ์ หรือ testimonial จำลองไม่ว่ากรณีใด
 
 ## 10. Local Development Workflow
 
@@ -229,7 +234,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **27 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **31 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 

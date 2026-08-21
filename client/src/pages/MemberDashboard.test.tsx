@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dashboardState = vi.hoisted(() => ({
   library: [] as unknown[],
+  testimonials: [] as unknown[],
 }));
 
 vi.mock("@/_core/hooks/useAuth", () => ({
@@ -21,6 +22,15 @@ vi.mock("@/lib/trpc", () => ({
         useQuery: () => ({ data: dashboardState.library, isLoading: false }),
       },
     },
+    testimonials: {
+      listMine: {
+        useQuery: () => ({ data: dashboardState.testimonials, isLoading: false }),
+      },
+      submit: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
+    },
+    useUtils: () => ({ testimonials: { listMine: { invalidate: vi.fn() } } }),
   },
 }));
 
@@ -61,6 +71,7 @@ const course = {
 describe("MemberDashboard", () => {
   beforeEach(() => {
     dashboardState.library = [];
+    dashboardState.testimonials = [];
   });
 
   it("renders an actionable empty state when the member has no purchases", () => {
@@ -81,5 +92,7 @@ describe("MemberDashboard", () => {
     expect(html).toContain('href="/read/workflow-course"');
     expect(html).toContain("เปิดอ่าน");
     expect(html).toContain("เรียนต่อ");
+    expect(html).toContain("เสียงจากผู้เรียนจริง");
+    expect(html).toContain("ส่งให้ทีมตรวจสอบ");
   });
 });

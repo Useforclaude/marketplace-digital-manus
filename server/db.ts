@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStoreProduct, InsertUser, purchases, storeProducts, users } from "../drizzle/schema";
+import { InsertStoreProduct, InsertUser, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
 import { defaultProducts } from "./defaultProducts";
 import { ENV } from './_core/env';
 
@@ -210,4 +210,108 @@ export async function grantPurchaseAccess({
   });
 
   return { userId, productId, stripeCheckoutSessionId };
+}
+
+export async function createOrUpdateTestimonial({
+  userId,
+  productId,
+  displayName,
+  feedback,
+}: {
+  userId: number;
+  productId: string;
+  displayName: string;
+  feedback: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while saving learner feedback.");
+
+  await db
+    .insert(testimonials)
+    .values({ userId, productId, displayName, feedback, consentToPublish: true, status: "pending", reviewedBy: null, reviewedAt: null })
+    .onDuplicateKeyUpdate({
+      set: { displayName, feedback, consentToPublish: true, status: "pending", reviewedBy: null, reviewedAt: null },
+    });
+
+  const result = await db
+    .select()
+    .from(testimonials)
+    .where(and(eq(testimonials.userId, userId), eq(testimonials.productId, productId)))
+    .limit(1);
+  return result[0];
+}
+
+export async function listApprovedTestimonials() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: testimonials.id,
+      productId: testimonials.productId,
+      displayName: testimonials.displayName,
+      feedback: testimonials.feedback,
+      createdAt: testimonials.createdAt,
+      productTitle: storeProducts.title,
+    })
+    .from(testimonials)
+    .innerJoin(storeProducts, eq(testimonials.productId, storeProducts.slug))
+    .where(and(eq(testimonials.status, "approved"), eq(testimonials.consentToPublish, true)))
+    .orderBy(desc(testimonials.reviewedAt), desc(testimonials.createdAt));
+}
+
+export async function listUserTestimonials(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: testimonials.id,
+      productId: testimonials.productId,
+      displayName: testimonials.displayName,
+      feedback: testimonials.feedback,
+      status: testimonials.status,
+      createdAt: testimonials.createdAt,
+      updatedAt: testimonials.updatedAt,
+      productTitle: storeProducts.title,
+    })
+    .from(testimonials)
+    .leftJoin(storeProducts, eq(testimonials.productId, storeProducts.slug))
+    .where(eq(testimonials.userId, userId))
+    .orderBy(desc(testimonials.updatedAt));
+}
+
+export async function listAdminTestimonials() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: testimonials.id,
+      productId: testimonials.productId,
+      displayName: testimonials.displayName,
+      feedback: testimonials.feedback,
+      consentToPublish: testimonials.consentToPublish,
+      status: testimonials.status,
+      createdAt: testimonials.createdAt,
+      reviewedAt: testimonials.reviewedAt,
+      learnerName: users.name,
+      learnerEmail: users.email,
+      productTitle: storeProducts.title,
+    })
+    .from(testimonials)
+    .innerJoin(users, eq(testimonials.userId, users.id))
+    .leftJoin(storeProducts, eq(testimonials.productId, storeProducts.slug))
+    .orderBy(desc(testimonials.updatedAt));
+}
+
+export async function getTestimonialById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(testimonials).where(eq(testimonials.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateTestimonialStatus({ id, status, reviewedBy }: { id: number; status: "pending" | "approved" | "hidden" | "rejected"; reviewedBy: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while moderating learner feedback.");
+  await db.update(testimonials).set({ status, reviewedBy, reviewedAt: new Date() }).where(eq(testimonials.id, id));
+  return { id, status };
 }

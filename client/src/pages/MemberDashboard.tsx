@@ -4,20 +4,40 @@ import { formatProductType } from "@/data/catalog";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { trpc } from "@/lib/trpc";
 import { getMemberDashboardStats, getMemberDashboardView } from "./memberDashboardUtils";
-import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, CheckCircle2, Clock3, GraduationCap, LayoutDashboard, LibraryBig, ReceiptText, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
-import React from "react";
+import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, CheckCircle2, Clock3, GraduationCap, LayoutDashboard, LibraryBig, MessageSquareQuote, ReceiptText, Send, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+import { toast } from "sonner";
 import { Link } from "wouter";
 
 function formatThaiDate(value: Date) {
   return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
+function testimonialStatusLabel(status: "pending" | "approved" | "hidden" | "rejected") {
+  if (status === "approved") return "เผยแพร่แล้ว";
+  if (status === "hidden") return "ซ่อนอยู่";
+  if (status === "rejected") return "ไม่ได้เผยแพร่";
+  return "รอทีมตรวจสอบ";
+}
+
 export default function MemberDashboard() {
   const { isAuthenticated, loading, user } = useAuth({ redirectOnUnauthenticated: true });
+  const utils = trpc.useUtils();
   const purchases = trpc.library.list.useQuery(undefined, { enabled: isAuthenticated });
+  const myTestimonials = trpc.testimonials.listMine.useQuery(undefined, { enabled: isAuthenticated });
   const library = purchases.data ?? [];
+  const testimonialByProduct = new Map((myTestimonials.data ?? []).map((testimonial) => [testimonial.productId, testimonial]));
   const stats = getMemberDashboardStats(library);
   const dashboardView = getMemberDashboardView(library);
+  const [testimonialForm, setTestimonialForm] = useState({ productId: "", displayName: "", feedback: "", consentToPublish: false });
+  const submitTestimonial = trpc.testimonials.submit.useMutation({
+    onSuccess: async () => {
+      await utils.testimonials.listMine.invalidate();
+      setTestimonialForm((current) => ({ ...current, feedback: "", consentToPublish: false }));
+      toast.success("ส่งเสียงสะท้อนแล้ว", { description: "ทีม Brightline จะตรวจสอบก่อนนำไปแสดงบนหน้าแรก" });
+    },
+    onError: (error) => toast.error("ยังส่งเสียงสะท้อนไม่ได้", { description: error.message }),
+  });
   useScrollReveal(library.length);
 
   return (
@@ -64,6 +84,10 @@ export default function MemberDashboard() {
                 <div className="hidden grid-cols-[1.4fr_.8fr_.8fr_auto] gap-4 border-b border-white/10 px-6 py-4 text-[9px] font-bold tracking-[.13em] text-white/42 md:grid"><span>รายการ</span><span>ประเภท</span><span>วันที่สั่งซื้อ</span><span>สถานะ</span></div>
                 {library.map(({ product, purchasedAt }) => <div key={`history-${product.slug}`} className="grid gap-3 border-b border-white/8 px-5 py-5 last:border-b-0 md:grid-cols-[1.4fr_.8fr_.8fr_auto] md:items-center md:gap-4 md:px-6"><div className="flex items-center gap-3"><img src={product.coverUrl} alt="" className="h-11 w-9 rounded-md object-cover" /><div><div className="text-sm font-bold text-white">{product.title}</div><div className="mt-1 text-[10px] text-white/44">สิทธิ์ผูกกับบัญชีของคุณ</div></div></div><div className="text-xs text-white/62">{formatProductType(product.productType)}</div><div className="flex items-center gap-1.5 text-xs text-white/52"><CalendarDays size={13} /> {formatThaiDate(purchasedAt)}</div><div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#d5ff45]/10 px-2.5 py-1 text-[9px] font-bold tracking-[.08em] text-[#d5ff45]"><ShieldCheck size={11} /> พร้อมใช้</div></div>)}
               </div>
+            </section>
+
+            <section className="reveal mt-16 overflow-hidden rounded-[2rem] border border-[#d5ff45]/18 bg-[#111713] p-6 sm:p-8">
+              <div className="grid gap-7 lg:grid-cols-[.9fr_1.1fr] lg:items-start"><div><div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#d5ff45] text-black"><MessageSquareQuote size={18} /></div><div className="eyebrow mt-5 text-[#d5ff45]">เสียงจากผู้เรียนจริง</div><h2 className="font-display mt-3 text-4xl leading-[.95] tracking-[-.055em] sm:text-5xl">สิ่งที่คุณนำไปใช้<br /><em className="text-white/46">มีความหมายกับคนถัดไป</em></h2><p className="mt-5 max-w-md text-sm leading-6 text-white/57">ส่งเฉพาะประสบการณ์จริงจากสินค้าที่คุณซื้อแล้ว เราจะไม่เผยแพร่จนกว่าคุณจะยินยอมและทีม Brightline อนุมัติ</p><div className="mt-6 space-y-2">{(myTestimonials.data ?? []).map((testimonial) => <div key={testimonial.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs"><span className="min-w-0 truncate text-white/72">{testimonial.productTitle ?? testimonial.productId}</span><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${testimonial.status === "approved" ? "bg-[#d5ff45]/14 text-[#d5ff45]" : testimonial.status === "hidden" ? "bg-white/10 text-white/56" : testimonial.status === "rejected" ? "bg-rose-300/12 text-rose-200" : "bg-amber-300/12 text-amber-200"}`}>{testimonialStatusLabel(testimonial.status)}</span></div>)}</div></div><form onSubmit={(event) => { event.preventDefault(); const displayName = testimonialForm.displayName.trim() || user?.name?.trim() || ""; submitTestimonial.mutate({ productId: testimonialForm.productId, displayName, feedback: testimonialForm.feedback, consentToPublish: testimonialForm.consentToPublish as true }); }} className="rounded-2xl border border-white/10 bg-black/20 p-5"><div className="grid gap-4"><label className="admin-field">สินค้า<select required value={testimonialForm.productId} onChange={(event) => setTestimonialForm((current) => ({ ...current, productId: event.target.value }))}><option value="" disabled>เลือกสิ่งที่คุณได้เรียน</option>{library.map(({ product }) => <option key={product.slug} value={product.slug}>{product.title}</option>)}</select></label><label className="admin-field">ชื่อที่ต้องการแสดง<input required maxLength={80} value={testimonialForm.displayName || user?.name || ""} onChange={(event) => setTestimonialForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="เช่น ชื่อจริง หรือชื่อเล่น" /></label><label className="admin-field">สิ่งที่คุณได้ลองใช้หรือเห็นว่าชัดขึ้น<textarea required minLength={30} maxLength={1200} rows={5} value={testimonialForm.feedback} onChange={(event) => setTestimonialForm((current) => ({ ...current, feedback: event.target.value }))} placeholder="เล่าจากประสบการณ์จริงของคุณ…" /></label><label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[.025] p-3 text-xs leading-5 text-white/58"><input required type="checkbox" checked={testimonialForm.consentToPublish} onChange={(event) => setTestimonialForm((current) => ({ ...current, consentToPublish: event.target.checked }))} className="mt-0.5 accent-[#d5ff45]" /><span>ฉันยืนยันว่าข้อความนี้มาจากประสบการณ์จริง และอนุญาตให้ Brightline พิจารณาเผยแพร่พร้อมชื่อที่ระบุได้</span></label><button type="submit" disabled={submitTestimonial.isPending} className="gradient-cta inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[.1em] text-black disabled:opacity-60"><Send size={14} /> {submitTestimonial.isPending ? "กำลังส่ง…" : "ส่งให้ทีมตรวจสอบ"}</button></div></form></div>
             </section>
           </>
         ) : (

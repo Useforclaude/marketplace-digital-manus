@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db", () => ({
-  createStoreProduct: vi.fn(), getProductBySlug: vi.fn(), hasProductAccess: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), updateStoreProduct: vi.fn(),
+  createStoreProduct: vi.fn(), createOrUpdateTestimonial: vi.fn(), getProductBySlug: vi.fn(), getTestimonialById: vi.fn(), hasProductAccess: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listAdminTestimonials: vi.fn(), listApprovedTestimonials: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), listUserTestimonials: vi.fn(), updateStoreProduct: vi.fn(), updateTestimonialStatus: vi.fn(),
 }));
 vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 

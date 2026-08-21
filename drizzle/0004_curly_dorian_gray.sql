@@ -1,0 +1,1 @@
+ALTER TABLE `testimonials` MODIFY COLUMN `status` enum('pending','approved','hidden','rejected') NOT NULL DEFAULT 'pending';

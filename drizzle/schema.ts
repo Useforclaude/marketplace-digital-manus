@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -80,3 +80,31 @@ export const purchases = mysqlTable(
 );
 
 export type Purchase = typeof purchases.$inferSelect;
+
+/**
+ * Learner feedback is collected only from members who own the referenced
+ * product. It remains private until a moderator explicitly approves it after
+ * the member has provided publication consent.
+ */
+export const testimonials = mysqlTable(
+  "testimonials",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: varchar("productId", { length: 96 }).notNull(),
+    displayName: varchar("displayName", { length: 80 }).notNull(),
+    feedback: text("feedback").notNull(),
+    consentToPublish: boolean("consentToPublish").default(false).notNull(),
+    status: mysqlEnum("status", ["pending", "approved", "hidden", "rejected"]).default("pending").notNull(),
+    reviewedBy: int("reviewedBy").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("testimonials_user_product_unique").on(table.userId, table.productId),
+    index("testimonials_public_feed_index").on(table.status, table.consentToPublish, table.createdAt),
+  ],
+);
+
+export type Testimonial = typeof testimonials.$inferSelect;

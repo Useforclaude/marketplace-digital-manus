@@ -52,3 +52,10 @@
 - [x] Integrate the new successful-professional hero with readable dark overlay and responsive composition.
 - [x] Add a transparent social-proof section that is ready for verified learner results and reviews without fabricated testimonial content.
 - [x] Test the hero and social-proof layout, then commit and push the feature branch update.
+- [x] Create and integrate a cinematic old-school wealth hero with a stylish man and woman learning on a premium aircraft.
+- [x] Add a consent-based testimonial data model and member submission flow for real learner feedback only.
+- [x] Add admin controls to approve, hide, or reject submitted testimonials with server-side RBAC and validation.
+- [x] Render only approved testimonials in the storefront social-proof section with an honest empty state.
+- [x] Add tests, update handoff.md, verify responsive UI, then commit and push the testimonial workflow feature branch update.
+- [x] Add an explicit rejected testimonial state and moderator action distinct from hiding content.
+- [x] Re-run the full verification suite, commit, and push the completed testimonial moderation workflow.

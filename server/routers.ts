@@ -7,12 +7,18 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   createStoreProduct,
+  createOrUpdateTestimonial,
   getProductBySlug,
+  getTestimonialById,
   hasProductAccess,
   listAdminOrders,
   listAdminProducts,
+  listAdminTestimonials,
+  listApprovedTestimonials,
   listPublishedProducts,
   listUserPurchases,
+  listUserTestimonials,
+  updateTestimonialStatus,
   updateStoreProduct,
 } from "./db";
 import { parsePaidContent, toPublicProduct } from "./products";
@@ -56,6 +62,13 @@ const productInput = z
 const coverUploadInput = z.object({
   dataUrl: z.string().max(4300000),
   filename: z.string().trim().max(100).optional(),
+});
+
+const testimonialSubmissionInput = z.object({
+  productId: z.string().trim().min(1).max(96),
+  displayName: z.string().trim().min(2, "กรุณาระบุชื่อที่ต้องการแสดง").max(80),
+  feedback: z.string().trim().min(30, "กรุณาเล่าประสบการณ์อย่างน้อย 30 ตัวอักษร").max(1200),
+  consentToPublish: z.literal(true, { error: "ต้องยืนยันการอนุญาตก่อนส่ง" }),
 });
 
 function getCoverUpload(dataUrl: string) {
@@ -119,6 +132,15 @@ export const appRouter = router({
         return { product: toPublicProduct(product), content: parsePaidContent(product.content) };
       }),
   }),
+  testimonials: router({
+    listApproved: publicProcedure.query(() => listApprovedTestimonials()),
+    listMine: protectedProcedure.query(({ ctx }) => listUserTestimonials(ctx.user.id)),
+    submit: protectedProcedure.input(testimonialSubmissionInput).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("testimonial-submit", ctx.user.id, 6, 60 * 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "ส่งเสียงสะท้อนบ่อยเกินไป กรุณาลองใหม่ภายหลัง" });
+      if (!(await hasProductAccess(ctx.user.id, input.productId))) throw new TRPCError({ code: "FORBIDDEN", message: "ส่งเสียงสะท้อนได้เฉพาะสินค้าที่คุณซื้อแล้ว" });
+      return createOrUpdateTestimonial({ userId: ctx.user.id, productId: input.productId, displayName: input.displayName, feedback: input.feedback });
+    }),
+  }),
   admin: router({
     listProducts: adminProcedure.query(() => listAdminProducts()),
     createProduct: adminProcedure.input(productInput).mutation(async ({ ctx, input }) => {
@@ -148,6 +170,14 @@ export const appRouter = router({
       }
     }),
     listOrders: adminProcedure.query(() => listAdminOrders()),
+    listTestimonials: adminProcedure.query(() => listAdminTestimonials()),
+    updateTestimonialStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["pending", "approved", "hidden", "rejected"]) })).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-testimonial", ctx.user.id, 40, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "อัปเดตสถานะบ่อยเกินไป กรุณารอสักครู่" });
+      const testimonial = await getTestimonialById(input.id);
+      if (!testimonial) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบเสียงสะท้อนที่ต้องการจัดการ" });
+      if (input.status === "approved" && !testimonial.consentToPublish) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่สามารถอนุมัติข้อความที่ยังไม่ได้รับ consent" });
+      return updateTestimonialStatus({ ...input, reviewedBy: ctx.user.id });
+    }),
   }),
 });
 
