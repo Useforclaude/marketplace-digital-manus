@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, purchases, users } from "../drizzle/schema";
+import { InsertStoreProduct, InsertUser, purchases, storeProducts, users } from "../drizzle/schema";
+import { defaultProducts } from "./defaultProducts";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +88,79 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function ensureDefaultProducts() {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(storeProducts).values(defaultProducts).onDuplicateKeyUpdate({ set: { slug: sql`slug` } });
+}
+
+export async function listPublishedProducts() {
+  await ensureDefaultProducts();
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(storeProducts).where(eq(storeProducts.status, "published")).orderBy(desc(storeProducts.createdAt));
+}
+
+export async function listAdminProducts() {
+  await ensureDefaultProducts();
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(storeProducts).orderBy(desc(storeProducts.updatedAt));
+}
+
+export async function getProductBySlug(slug: string) {
+  await ensureDefaultProducts();
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(storeProducts).where(eq(storeProducts.slug, slug)).limit(1);
+  return result[0];
+}
+
+export async function getPublishedProductsBySlugs(slugs: string[]) {
+  await ensureDefaultProducts();
+  const db = await getDb();
+  if (!db || slugs.length === 0) return [];
+  return db.select().from(storeProducts).where(and(inArray(storeProducts.slug, slugs), eq(storeProducts.status, "published")));
+}
+
+export async function getProductsBySlugs(slugs: string[]) {
+  const db = await getDb();
+  if (!db || slugs.length === 0) return [];
+  return db.select().from(storeProducts).where(inArray(storeProducts.slug, slugs));
+}
+
+export async function createStoreProduct(product: InsertStoreProduct) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while creating a product.");
+  await db.insert(storeProducts).values(product);
+  return getProductBySlug(product.slug);
+}
+
+export async function updateStoreProduct(slug: string, product: Partial<InsertStoreProduct>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating a product.");
+  await db.update(storeProducts).set(product).where(eq(storeProducts.slug, slug));
+  return getProductBySlug(slug);
+}
+
+export async function listAdminOrders() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: purchases.id,
+      productId: purchases.productId,
+      stripeCheckoutSessionId: purchases.stripeCheckoutSessionId,
+      stripePaymentIntentId: purchases.stripePaymentIntentId,
+      purchasedAt: purchases.purchasedAt,
+      buyerName: users.name,
+      buyerEmail: users.email,
+    })
+    .from(purchases)
+    .innerJoin(users, eq(purchases.userId, users.id))
+    .orderBy(desc(purchases.purchasedAt));
 }
 
 export async function listUserPurchases(userId: number) {

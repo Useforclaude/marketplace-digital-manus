@@ -1,4 +1,4 @@
-import { products } from "@/data/catalog";
+import { trpc } from "@/lib/trpc";
 import { addCartLine, getCartSummary, setCartLineQuantity, type CartLine } from "./cartUtils";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
@@ -7,6 +7,7 @@ type CartContextValue = {
   items: ReturnType<typeof getCartSummary>["items"];
   itemCount: number;
   subtotal: number;
+  catalogLoading: boolean;
   addItem: (productId: string) => void;
   removeItem: (productId: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
@@ -19,6 +20,7 @@ const STORAGE_KEY = "brightline-cart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
+  const catalog = trpc.catalog.list.useQuery();
 
   useEffect(() => {
     try {
@@ -38,13 +40,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [lines]);
 
   const value = useMemo<CartContextValue>(() => {
-    const { items, itemCount, subtotal } = getCartSummary(lines, products);
+    const { items, itemCount, subtotal } = getCartSummary(lines, catalog.data ?? []);
 
     return {
       lines,
       items,
       itemCount,
       subtotal,
+      catalogLoading: catalog.isLoading,
       addItem: (productId) => {
         setLines((current) => addCartLine(current, productId));
       },
@@ -56,7 +59,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
       clearCart: () => setLines([]),
     };
-  }, [lines]);
+  }, [catalog.data, catalog.isLoading, lines]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

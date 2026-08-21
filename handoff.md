@@ -1,205 +1,216 @@
 # Brightline Marketplace — Engineering Handoff
 
-**Brightline** is a dark editorial marketplace for selling individual digital editions. It combines a public storefront, member identity, persistent cart, Stripe Checkout, buyer-specific purchase entitlements, and an HTML eBook reader. This document is the operational source of truth for the next developer taking over the repository.
+**Brightline** คือ marketplace ภาษาไทยสำหรับขาย eBook แบบ HTML และคอร์สออนไลน์ โดยมีหน้าร้าน, สมาชิก, ตะกร้าสินค้า, Stripe Checkout, entitlement ของผู้ซื้อ และ reader ที่คืนเนื้อหาจากเซิร์ฟเวอร์เฉพาะเมื่อยืนยันสิทธิ์แล้ว เอกสารนี้เป็นจุดเริ่มต้นสำหรับทีมที่เข้ามาดูแลระบบต่อ
 
-> The storefront is deliberately a **full-stack application**, not a static landing page. Authentication, payment verification, entitlement checks, and reader content must remain server-controlled to restrict a paid edition to its buyer at runtime.
+> ระบบนี้เป็น **full-stack commerce application** ไม่ใช่ static landing page เพราะราคา การชำระเงิน การปลดล็อกสิทธิ์ และเนื้อหาที่ซื้อ ต้องตรวจสอบบนเซิร์ฟเวอร์เสมอ
 
-## 1. Product Scope and Current State
+## 1. สถานะปัจจุบันและขอบเขตระบบ
 
-Visitors can browse a small catalog, add editions to a local cart, and sign in before checkout. A Stripe Checkout Session is created only on the server from trusted product definitions. When Stripe confirms payment through the webhook, the application grants the buyer access to the specific edition. The buyer can then open that edition from `/library` and read it at `/read/:productId`.
+ผู้ใช้เลือกสินค้าได้ทั้ง eBook HTML และคอร์สออนไลน์ เพิ่มสินค้าลงตะกร้า หรือกด “ซื้อเลย” จาก product card ที่มองเห็นชัดเจน ระบบสร้าง Stripe Checkout Session ทางเซิร์ฟเวอร์จากราคาในฐานข้อมูลเท่านั้น เมื่อ webhook ที่เซ็นโดย Stripe ยืนยันการชำระเงิน จึงบันทึก entitlement และปลดล็อกสินค้าใน `/library` ให้กับบัญชีนั้น
 
-| Capability | Current implementation | Primary location |
+| ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| Public storefront | Dark editorial landing page with three curated product cards and generated cover art | `client/src/pages/Home.tsx` |
-| Cart | Client-side localStorage cart with quantity controls, price summary, and checkout CTA | `client/src/contexts/CartContext.tsx` |
-| Membership | Manus OAuth session, shared `useAuth()` hook, protected procedures | `server/_core/`, `client/src/_core/hooks/useAuth.ts` |
-| Catalog and prices | Server-trusted product source shared with the UI | `shared/products.ts` |
-| Checkout | Stripe-hosted Checkout Session created by tRPC mutation | `server/stripe.ts`, `server/routers.ts` |
-| Payment fulfillment | Verified Stripe webhook grants access records | `server/stripeWebhook.ts`, `server/db.ts` |
-| Library | Buyer-specific owned-edition grid | `client/src/pages/Library.tsx` |
-| HTML reader | Protected reader that fetches chapter content only after entitlement validation | `client/src/pages/Reader.tsx`, `server/ebookContent.ts` |
-| Automated verification | Vitest coverage for catalog, checkout price guard, webhook metadata, and reader access | `shared/*.test.ts`, `server/*.test.ts` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, gradient CTA, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/hooks/useScrollReveal.ts` |
+| สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
+| หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้า ราคา หน้าปก เนื้อหา JSON และดู entitlement ที่ชำระแล้ว | `client/src/pages/Admin.tsx`, `server/routers.ts` |
+| รูปหน้าปก | อัปโหลดผ่าน server เฉพาะ admin, จำกัด MIME และขนาดไฟล์ | `admin.uploadCover`, `server/storage.ts` |
+| สมาชิก | Manus OAuth และ signed session cookie | `server/_core/`, `client/src/_core/hooks/useAuth.ts` |
+| ตะกร้า | localStorage สำหรับ UX เท่านั้น ไม่ใช่หลักฐานการซื้อ | `client/src/contexts/CartContext.tsx` |
+| การชำระเงิน | Stripe Checkout Session จากสินค้า published ในฐานข้อมูล | `server/stripe.ts` |
+| การปลดล็อก | Stripe webhook ที่ตรวจ signature สร้าง entitlement ใน `purchases` | `server/stripeWebhook.ts` |
+| เนื้อหาผู้ซื้อ | reader เรียก content ผ่าน API หลังตรวจ entitlement | `server/routers.ts`, `client/src/pages/Reader.tsx` |
+| Security | CSP, HSTS production, origin check, API/per-user rate limit, Zod validation และ server-side RBAC | `server/_core/index.ts`, `server/security.ts` |
 
 ## 2. Technology Stack
 
-The current application uses the template’s full-stack TypeScript architecture. The frontend and server deliberately share types and product definitions so that an edition’s identity and price cannot drift between the card shown to a buyer and the Stripe line item created for payment.
-
-| Layer | Technology | Responsibility |
+| Layer | Technology | หน้าที่ |
 | --- | --- | --- |
-| Frontend | React 19, TypeScript, Vite, Wouter | Storefront, cart, library, protected reader routes |
-| Styling | Tailwind CSS 4, custom CSS variables, Manrope, Playfair Display, DM Mono | Dark editorial design system and responsive layouts |
-| UI primitives | shadcn/ui foundation, Lucide icons, Sonner | Accessible shared primitives, icons, and feedback toasts |
-| API | Express 4, tRPC 11, Zod | Typed server procedures and input validation under `/api/trpc` |
-| Authentication | Manus OAuth and signed session cookie | Member sign-in, protected procedures, user identity |
-| Database | MySQL/TiDB, Drizzle ORM | User table plus business-specific purchase entitlement records |
-| Payments | Stripe Checkout and signed webhooks | Hosted payment, payment confirmation, entitlement grant |
-| Tests | Vitest | Unit tests for core commerce and access controls |
+| Frontend | React 19, TypeScript, Vite, Wouter | storefront, cart, library, reader และ admin routes |
+| Styling | Tailwind CSS 4, custom CSS, Manrope, Playfair Display, DM Mono | dark UI, gradient, responsive และ IntersectionObserver/reduced-motion support |
+| UI primitives | shadcn/ui foundation, Lucide, Sonner | interaction patterns, icons และ notifications |
+| API | Express 4, tRPC 11, Zod | typed API และ validation ที่ `/api/trpc` |
+| Auth | Manus OAuth | สมาชิก, signed session และ user role |
+| Database | MySQL/TiDB, Drizzle ORM | users, products และ purchase entitlements |
+| Storage | S3-compatible storage helper | เก็บรูปหน้าปกและคืน `/manus-storage/...` URL |
+| Payments | Stripe Checkout + signed webhook | ชำระเงินและ fulfillment |
+| Tests | Vitest | unit tests สำหรับ checkout, admin, security, cart และ entitlements |
 
-## 3. System Architecture
+## 3. Architecture and Data Flow
 
 ```mermaid
 flowchart LR
-  V[Visitor] --> S[React storefront]
-  S --> C[Local cart]
+  V[ผู้เข้าชม] --> S[React storefront]
+  S --> C[Cart localStorage]
   S --> A[Manus OAuth]
   A --> T[tRPC API]
   C --> T
-  T --> P[shared/products.ts]
+  T --> P[(store_products)]
   T --> SC[Stripe Checkout Session]
   SC --> ST[Stripe hosted checkout]
   ST --> WH[/api/stripe/webhook]
-  WH --> DB[(MySQL/TiDB purchases)]
-  DB --> T
-  T --> L[Protected library and HTML reader]
+  WH --> E[(purchases entitlement)]
+  E --> T
+  T --> L[Protected library / reader]
   L --> V
+  AD[Admin] --> T
+  AD --> U[Validated cover upload]
+  U --> S3[Private storage workflow]
 ```
 
-The browser never supplies a monetary amount to Stripe. It sends only product IDs and quantities. `server/stripe.ts` resolves these IDs against `shared/products.ts` and builds the Stripe line items from the trusted `priceCents` values. This prevents a modified browser request from changing an edition price.
+เบราว์เซอร์ส่งเพียง `productId` และ `quantity` เข้าสู่ checkout API เท่านั้น `server/stripe.ts` โหลดสินค้า **published** จาก `store_products` และสร้าง `price_data` จาก `priceSatang` ที่เชื่อถือได้ จึงไม่สามารถแก้ราคาใน DevTools หรือผ่าน request ที่ถูกดัดแปลงเพื่อสร้าง Checkout Session ในราคาปลอมได้
 
-Stripe delivers payment events to a public HTTPS endpoint. The application registers `/api/stripe/webhook` **before** the JSON parser so the raw request body is available for signature verification. Stripe recommends webhook-driven fulfillment because a browser redirect alone is not a trustworthy indicator that payment completed.[1] [2]
+Stripe ยืนยันการชำระเงินผ่าน webhook แทนการเชื่อ redirect หน้า success เพราะ redirect เป็นเพียงประสบการณ์ผู้ใช้ ไม่ใช่หลักฐานการจ่ายเงิน ระบบตรวจลายเซ็นและ raw request body ก่อนสร้าง entitlement ตามแนวทาง Stripe [1] [2]
 
 ## 4. Repository Map
 
-| Path | What belongs here | Maintenance notes |
+| Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
-| `client/src/pages/` | Route-level screens | Keep each major visitor journey in its own page component. |
-| `client/src/components/` | Reusable visual components | `StoreHeader.tsx` is the shared storefront navigation. |
-| `client/src/contexts/CartContext.tsx` | Browser cart state | The cart is intentionally local until checkout begins. Never treat it as a payment record. |
-| `client/src/data/catalog.ts` | Client-facing catalog re-export | Do not put prices here; it re-exports the shared source. |
-| `shared/products.ts` | Product IDs, copy, price, cover assets | This is the sole source of truth for purchasable editions. |
-| `server/routers.ts` | Typed API procedures | Use `protectedProcedure` for all member, checkout, and reader actions. |
-| `server/stripe.ts` | Checkout Session creation and trusted line-item construction | Never accept client-provided prices, currency, or product descriptions. |
-| `server/stripeWebhook.ts` | Signature verification and access fulfillment | Preserve raw-body handling in `server/_core/index.ts`. |
-| `server/ebookContent.ts` | Server-only HTML-reader manuscript data | Replace sample chapters with production copy; do not import this module in client code. |
-| `drizzle/schema.ts` | Drizzle schema | Modify first, generate migration, review SQL, then apply migration. |
-| `server/db.ts` | Database helpers | Keep Stripe financial data out of local storage except identifiers needed for access/audit. |
-| `handoff.md` | Operational documentation | Update this document whenever stack, payment, access, or deployment behavior changes. |
+| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card |
+| `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
+| `client/src/pages/Admin.tsx` | หลังบ้านสินค้าและคำสั่งซื้อ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง |
+| `client/src/pages/Library.tsx` | คลังส่วนตัว | แสดงเฉพาะ entitlement ของ current user |
+| `client/src/pages/Reader.tsx` | eBook/course reader | ห้ามย้าย content เข้า public static bundle หรือ `dangerouslySetInnerHTML` |
+| `client/src/components/StoreHeader.tsx` | navigation หน้าร้าน | แสดง link หลังบ้านเฉพาะ admin เพื่อ UX เท่านั้น |
+| `client/src/contexts/CartContext.tsx` | cart ฝั่ง browser | ห้ามถือว่า cart เป็น order, payment หรือ entitlement |
+| `client/src/data/catalog.ts` | type/formatter ฝั่ง client | ห้าม hardcode ราคา หรือ manuscript ใน client |
+| `drizzle/schema.ts` | schema ที่เป็น source of truth | แก้ schema → generate migration → review SQL → apply migration |
+| `server/defaultProducts.ts` | seed catalog สำหรับ environment ใหม่ | ใช้เฉพาะ seed idempotent และไม่ overwrite การแก้ไขของ admin |
+| `server/db.ts` | persistence and queries | แยก public product mapping ออกจาก product record ที่มี content |
+| `server/products.ts` | public product boundary | `toPublicProduct()` ต้องไม่คืน `content`, `coverKey` หรือ persistence fields |
+| `server/routers.ts` | catalog, checkout, library, admin tRPC APIs | ทุก mutation ต้องผ่าน Zod และ procedure ที่เหมาะสม |
+| `server/stripe.ts` | Stripe checkout creation | ห้ามรับราคา, currency หรือ description จาก browser |
+| `server/stripeWebhook.ts` | signature verification และ entitlement fulfillment | คง raw-body route ordering เสมอ |
+| `server/security.ts` | per-user mutation limiter | เป็น in-process limit; production ควรเสริม WAF/provider rate limiting |
+| `server/_core/index.ts` | Express headers, parser limits, origin guard, route mounting | อย่าสลับลำดับ Stripe raw route กับ JSON parser |
+| `handoff.md` | คู่มือระบบ | อัปเดตทุกครั้งที่เปลี่ยน payment, auth, access หรือ deploy behavior |
 
-## 5. Data Model and Access Control
+## 5. Data Model
 
-The local database does not duplicate Stripe’s transaction ledger. It stores only the business fact that a given site user owns a given digital edition, together with the Stripe session and payment-intent identifiers required for reconciliation.
-
-| Table | Important fields | Why the fields exist |
+| Table | Fields สำคัญ | ความหมาย |
 | --- | --- | --- |
-| `users` | `id`, `openId`, `email`, `role` | Identity is created and maintained through the OAuth flow. |
-| `purchases` | `userId`, `productId` | Forms the entitlement: **this member can open this edition**. |
-| `purchases` | `stripeCheckoutSessionId`, `stripePaymentIntentId` | Provides minimal Stripe traceability without duplicating amounts, card details, invoices, or raw webhook payloads. |
+| `users` | `id`, `openId`, `email`, `role` | identity จาก OAuth; role มี `user` และ `admin` |
+| `store_products` | `slug`, `productType`, `status`, `priceSatang`, `currency` | catalog ที่ admin แก้ไขได้ และเป็น source of truth ด้านการขาย |
+| `store_products` | `coverUrl`, `coverKey`, `content` | metadata รูปปกและ paid content; `content` ห้ามคืนจาก public catalog |
+| `purchases` | `userId`, `productId` | entitlement: สมาชิกนี้เปิดสินค้านี้ได้ |
+| `purchases` | `stripeCheckoutSessionId`, `stripePaymentIntentId` | identifiers ที่จำเป็นต่อ reconciliation โดยไม่คัดลอกข้อมูลบัตรหรือ transaction ledger |
 
-The database enforces unique `(userId, productId)` and `(stripeCheckoutSessionId, productId)` combinations. This makes webhook retries idempotent: a successful repeat delivery cannot grant a second copy of the same entitlement.
+`purchases` มี unique combinations ที่ช่วยให้ webhook retry เป็น idempotent และไม่ปลดล็อกสิทธิ์ซ้ำสำหรับสินค้า/checkout session เดิม
 
-> Runtime access is buyer-only. Repository collaborators can still read manuscript source stored in `server/ebookContent.ts`, as they have source-code access. If editorial content must remain hidden from developers, move manuscripts to a separate restricted content service or a private storage system with server-side retrieval.
+## 6. Admin Workflow
 
-## 6. Purchase and Reader Workflow
+ผู้ดูแลเข้า `/admin` ด้วยบัญชีที่มี `role = 'admin'` เท่านั้น หน้า admin มี product list, edit form และ order table
 
-| Step | Actor | What occurs | Security boundary |
+| งาน | วิธีทำ | Server guard |
+| --- | --- | --- |
+| สร้างสินค้า | กด “สร้างสินค้าใหม่”, กรอก slug, ราคาบาท, cover, content JSON และสถานะ | `adminProcedure`, Zod, per-user rate limit |
+| แก้ราคา/รายละเอียด | เลือก “แก้ไข” แล้วบันทึก | server revalidates payload; slug ของสินค้าที่มีอยู่เปลี่ยนไม่ได้ |
+| อัปโหลดหน้าปก | ใช้ PNG/JPG/WebP ไม่เกิน 3 MB | admin-only, MIME data URL validation, size check, storage upload |
+| เผยแพร่สินค้า | เปลี่ยน status เป็น `published` | checkout จะโหลดเฉพาะสินค้า published |
+| ปิดขายชั่วคราว | เปลี่ยน status เป็น `draft` หรือ `archived` | สินค้าไม่สามารถเข้าสู่ checkout ใหม่ได้ |
+| ดูคำสั่งซื้อ | เปิด tab “คำสั่งซื้อ” | แสดง entitlement ที่ webhook ยืนยันแล้วเท่านั้น |
+
+### Product content format
+
+content เก็บเป็น JSON string เพื่อให้ API ตรวจ structure ได้ก่อนเขียนฐานข้อมูล
+
+```json
+{
+  "kind": "ebook",
+  "intro": "คำเกริ่นนำ",
+  "chapters": [
+    { "kicker": "บทที่ 01", "title": "ชื่อบท", "body": ["ย่อหน้าแรก"] }
+  ]
+}
+```
+
+```json
+{
+  "kind": "course",
+  "intro": "คำเกริ่นนำคอร์ส",
+  "modules": [
+    { "title": "บทเรียนที่ 1", "duration": "30 นาที", "summary": "ผลลัพธ์ที่ผู้เรียนจะได้รับ" }
+  ]
+}
+```
+
+## 7. Purchase, Entitlement and Reader Workflow
+
+| ลำดับ | ผู้กระทำ | เหตุการณ์ | Boundary |
 | --- | --- | --- | --- |
-| 1 | Visitor | Adds catalog IDs to the local cart. | Cart is a convenience state, not proof of ownership. |
-| 2 | Member | Signs in before pressing checkout. | `protectedProcedure` supplies the authenticated server user. |
-| 3 | Server | Validates each ID and derives line items from `shared/products.ts`. | Client price data is ignored. |
-| 4 | Stripe | Hosts payment and returns the visitor to `/library`. | The return URL does not grant access. |
-| 5 | Stripe webhook | Server verifies the Stripe signature and records one `purchases` entitlement per edition. | Only signed, paid Stripe events can unlock an edition. |
-| 6 | Member | Opens `/library`, then `/read/:productId`. | `library.reader` checks the authenticated user against the `purchases` table before returning chapter content. |
+| 1 | ผู้เข้าชม | เพิ่ม slug และจำนวนเข้าตะกร้า | cart เป็น convenience state เท่านั้น |
+| 2 | สมาชิก | ลงชื่อเข้าใช้แล้วเริ่ม checkout | `protectedProcedure` ผูก action กับ current user |
+| 3 | Server | validate cart และโหลด product published จาก DB | ราคา/สินค้าใน browser ถูกละเลย |
+| 4 | Stripe | แสดง hosted checkout | ไม่มี payment data ผ่าน app server |
+| 5 | Stripe webhook | ตรวจ signature และ payment status แล้วเรียก `grantPurchaseAccess` | เฉพาะ Stripe event ที่ตรวจแล้วปลดล็อกได้ |
+| 6 | สมาชิก | เปิด `/library` และ `/read/:productId` | server ตรวจ `purchases` ก่อนคืน `content` |
 
-The handler explicitly returns `{ "verified": true }` for Stripe’s `evt_test_` verification events, as required by the current integration setup. For a completed one-time payment it processes `checkout.session.completed`; it also supports `checkout.session.async_payment_succeeded` for payment methods that complete asynchronously.
+การเปิด DevTools, Inspect Element หรือดู JavaScript bundle ทำได้ตามธรรมชาติของเว็บ แต่ **ไม่ทำให้ผู้ใช้ได้รับสิทธิ์เพิ่มหรือแก้ข้อมูลในระบบได้** เพราะ entitlement, ราคา, role และ content verification อยู่ที่ server/database การป้องกันที่ถูกต้องคือไม่ส่ง paid manuscript, secrets หรือ admin privileges ไปยัง client ตั้งแต่แรก ไม่ใช่พยายาม “ปิด Inspect” ซึ่งไม่ใช่ security control
 
-## 7. Local Development Workflow
+## 8. Security Model
 
-Run the following commands from the repository root. The project expects Node.js and pnpm as specified in `package.json`.
-
-| Goal | Command | Expected result |
+| ความเสี่ยง | การป้องกันที่มี | หมายเหตุ |
 | --- | --- | --- |
-| Install dependencies | `pnpm install` | Installs frontend, server, Stripe, and test packages. |
-| Start the app | `pnpm dev` | Starts the Express/Vite development server. |
-| Type-check | `pnpm check` | Runs TypeScript with `--noEmit`. |
-| Run tests | `pnpm test` | Runs the Vitest suite. |
-| Generate migration | `pnpm drizzle-kit generate` | Writes a reviewable SQL file under `drizzle/`. |
-| Build production bundle | `pnpm build` | Produces the server/client production bundle. |
-| Start production bundle | `pnpm start` | Starts the built Node server. |
+| แก้ราคาใน client | checkout resolves DB products on server | client values ไม่มีราคา/currency |
+| เปิดเนื้อหาฟรี | `library.reader` checks auth + entitlement ก่อนส่ง content | public catalog ส่งเฉพาะ metadata |
+| ปลอม payment success | Stripe raw webhook signature verification | redirect `/library?checkout=success` ไม่ปลดล็อกสิทธิ์ |
+| ข้ามสิทธิ์ admin | `adminProcedure` checks `ctx.user.role` ทุก endpoint | client admin page เป็นเพียง UX layer |
+| ส่งข้อมูลผิดรูป | Zod validation และ content schema checks | slug, price, status, content, upload ถูกตรวจ server-side |
+| spam/abuse | API IP window, checkout/admin per-user windows | production ควรเปิด WAF/rate limits ของ hosting เพิ่ม |
+| cross-site mutation | same-origin check สำหรับ state-changing tRPC requests | webhook อยู่ก่อน guard และตรวจ Stripe signature เอง |
+| oversized upload | 5 MB JSON cap, 3 MB raw image cap, allowed MIME | uploads ผ่าน admin only |
+| clickjacking/unsafe browser features | CSP, `frame-ancestors 'none'`, X-Frame-Options, Permissions-Policy | CSP development เปิด inline/eval เฉพาะ Vite; production เข้มกว่า |
+| insecure transport | `Strict-Transport-Security` เฉพาะ production | hosting ต้อง serve HTTPS |
 
-Every functional change should follow the same sequence: update the relevant schema or shared contract, implement the server procedure, bind the UI through the typed tRPC hook, add or revise a Vitest case, then run `pnpm test` and `pnpm check`. Make a small, focused commit once the feature is coherent rather than mixing refactors, design work, and payment changes.
+### ข้อจำกัดที่ต้องรับรู้
 
-## 8. Adding or Editing an Edition
+ไม่มีเว็บใดรับประกันได้ว่า “เจาะไม่ได้ 100%” ทีมต้อง patch dependencies, rotate secrets, review Stripe events และใช้ WAF/observability ของ hosting ต่อเนื่อง หากเนื้อหาต้องซ่อนแม้จาก repository collaborators ให้นำ manuscript ออกจาก source control และดึงจาก storage/service ที่จำกัดสิทธิ์ทาง server แทน
 
-To add an edition, add exactly one product object to `shared/products.ts`, then add the matching reader entry in `server/ebookContent.ts`. The two IDs must be identical. Add a cover image to `/home/ubuntu/webdev-static-assets/`, upload it as a web asset, and use the returned `/manus-storage/...` URL as `coverUrl`. Do not place large image assets inside the repository’s `client/public` or `client/src` directories.
+## 9. Local Development Workflow
 
-The checkout uses dynamic Stripe `price_data`; therefore a separate Stripe Product or Price is not required for the current one-time-purchase model. The product title, description, USD amount, and product ID still originate exclusively from `shared/products.ts`. If the business later needs subscriptions, tax automation, inventory, regional pricing, or recurring access, define explicit Stripe Products/Prices and extend the source-of-truth model before changing checkout.
-
-## 9. Stripe Setup and Go-Live Checklist
-
-The Stripe integration is configured for a test sandbox. The sandbox must be claimed through the Stripe link shown in the project payment settings before its expiration. For test payment, Stripe’s standard test card is `4242 4242 4242 4242` with any future expiry, any CVC, and any postal code. Do not place live or test secret keys in Git.
-
-| Requirement | Where to configure it | Notes |
+| เป้าหมาย | คำสั่ง | ผลลัพธ์ |
 | --- | --- | --- |
-| Secret key and publishable key | Project payment settings | Provided as runtime environment variables in the managed project. |
-| Webhook secret | Project payment settings | Must match the public endpoint’s Stripe Dashboard configuration. |
-| Webhook endpoint | Stripe Dashboard → Webhooks | Set to `https://<production-domain>/api/stripe/webhook`. Subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`. |
-| Production validation | Stripe Dashboard and site | Confirm payment, webhook delivery, database entitlement, library entry, and reader access in that order. |
-| Live mode | Stripe Dashboard after account verification | Replace test configuration through payment settings; never commit environment values. |
+| ติดตั้ง dependency | `pnpm install` | ติดตั้ง frontend, server, Stripe และ tooling |
+| เปิด dev server | `pnpm dev` | เริ่ม Express/Vite |
+| ตรวจ TypeScript | `pnpm check` | รัน `tsc --noEmit` |
+| รัน tests | `pnpm test` | รัน Vitest |
+| สร้าง migration | `pnpm drizzle-kit generate` | SQL ใหม่ใต้ `drizzle/` |
+| build production | `pnpm build` | สร้าง Vite client และ Express bundle |
+| run production | `pnpm start` | เปิด bundle ที่ build แล้ว |
 
-Stripe requires public webhook endpoints to be HTTPS and signs webhook deliveries; preserve both properties whenever deployment changes.[1] The payment return page is intentionally only a customer experience step. The Stripe Dashboard’s webhook delivery log is the correct first place to inspect an order that has been paid but has not appeared in a library.
+หลังเปลี่ยน schema ให้ทำตามลำดับ: แก้ `drizzle/schema.ts` → `pnpm drizzle-kit generate` → review SQL → apply migration → เพิ่ม test → `pnpm test && pnpm check && pnpm build`
 
-## 10. Deployment Runbooks
+## 10. Stripe Setup and Go-Live
 
-The source is currently a Node/Express application with database access, OAuth, and a webhook route. It **cannot** be deployed as a static-site export without removing the buyer-only access boundary. Any target must provide an HTTPS server runtime, environment variables, database connectivity, and a route that preserves the raw Stripe webhook body. Stripe requires the endpoint secret, signature header, and raw request bytes to validate a delivery; parsing JSON before verification breaks that contract.[2]
+Stripe sandbox ของโปรเจกต์ต้องถูก claim ก่อนใช้งานทดสอบจริง ห้าม commit secret keys, webhook secret หรือ `.env`
 
-### 10.1 Shared pre-flight for every provider
-
-Before choosing a provider, run `pnpm test`, `pnpm check`, and `pnpm build` in a clean checkout. Set all runtime variables using the provider’s secret manager: `DATABASE_URL`, `JWT_SECRET`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `VITE_STRIPE_PUBLISHABLE_KEY`, and the existing application/analytics variables required by the OAuth template. Do not commit `.env` files or webhook secrets.
-
-The database must be reachable from the provider’s runtime and use TLS where the database service requires it. Reconfigure OAuth callback URLs for the new production origin before enabling sign-in. After the first successful deployment, create the Stripe endpoint `https://<production-domain>/api/stripe/webhook`, select `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and copy that endpoint’s signing secret to the provider’s production secrets. The endpoint should acknowledge valid events quickly with a 2xx response.[2]
-
-### 10.2 Vercel runbook
-
-Vercel Functions can run server-side code in a Node.js runtime and are deployed with the project’s application source.[3] The existing `dist/index.js` Express server is not a static Vercel artifact; migrate the Express entry points to a Vercel Function adapter before selecting this target.
-
-| Step | Action | Verification |
+| Requirement | ที่ตั้งค่า | หมายเหตุ |
 | --- | --- | --- |
-| 1 | Import the GitHub repository into a new Vercel project and set Node 22 / pnpm. | Vercel detects the repository and installs dependencies. |
-| 2 | Add a Node-compatible function adapter for the application API. Keep `/api/trpc/*`, OAuth callbacks, and `/api/stripe/webhook` behind the adapter. | `GET /` serves the Vite client and `/api/trpc/auth.me` returns a normal tRPC response. |
-| 3 | For the webhook function, read `await request.arrayBuffer()` and construct `Buffer.from(...)` before calling `stripe.webhooks.constructEvent`. Never call `request.json()` on this route. | A Stripe test event verifies successfully. |
-| 4 | Set the shared pre-flight secrets in Vercel’s Environment Variables for Preview and Production as appropriate. Pin the function region near the database if latency is material. | Login and an authenticated `/library` query work in the deployment. |
-| 5 | Use `pnpm build` as the build command. The build does not need `pnpm start` on Vercel because the platform invokes functions. | The deployment finishes with the adapter function present. |
-| 6 | Add the production Stripe webhook URL and send a test event from the Stripe Dashboard. | Stripe event delivery shows HTTP 200 and a buyer entitlement is created after a test payment. |
+| Stripe secret/publishable key | Project payment settings | injected เป็น runtime env |
+| Webhook secret | Project payment settings | ต้องตรงกับ endpoint ใน Stripe Dashboard |
+| Webhook URL | Stripe Dashboard → Webhooks | `https://<domain>/api/stripe/webhook` |
+| Event ที่ใช้ | Stripe Dashboard | `checkout.session.completed`, `checkout.session.async_payment_succeeded` |
+| ทดสอบ payment | Stripe test mode | ใช้ card `4242 4242 4242 4242` พร้อม expiry ในอนาคต |
 
-### 10.3 Netlify runbook
+ทุกครั้งที่เปลี่ยน domain ต้องอัปเดต OAuth callback, Stripe webhook URL, secret และทดสอบ flow ตามลำดับ: login → add to cart → checkout → Stripe event delivery → `purchases` entitlement → library → reader [1] [2]
 
-Netlify Functions accept web `Request` objects and return `Response` objects; their URL paths can be explicitly configured alongside the function.[4] This project needs a small API adapter because the current runtime is Express, not a Netlify Function.
+## 11. Deployment Notes
 
-| Step | Action | Verification |
+โปรเจกต์นี้เป็น Node/Express app ที่มี OAuth, database และ raw Stripe webhook จึง **ไม่สามารถ deploy เป็น static export เพียงอย่างเดียว** หากย้ายไป Vercel, Netlify หรือ Cloudflare ต้องเขียน adapter/port runtime ให้รักษา `/api/trpc/*`, OAuth routes และ raw body ของ `/api/stripe/webhook` ไว้ การใช้ generic Node host (Railway, Render, Fly.io หรือ container runtime) เปลี่ยนแปลงน้อยที่สุด: `pnpm build` แล้ว `pnpm start`
+
+| Provider | แนวทาง | จุดที่ต้องตรวจ |
 | --- | --- | --- |
-| 1 | Import the GitHub repository into Netlify and set build command `pnpm build`. Publish the Vite output from `dist/public`. | The public storefront is accessible from the Netlify domain. |
-| 2 | Move API entry points into `netlify/functions/` or use a maintained Express-to-function adapter. Map `/api/trpc/*` and OAuth routes to their equivalent function paths. | Member sign-in completes and a protected tRPC procedure sees the session. |
-| 3 | Create a dedicated `stripe-webhook` function mapped to `/api/stripe/webhook`. Read `Buffer.from(await req.arrayBuffer())`, preserve the `Stripe-Signature` header, verify the event, then process the entitlement. | A test delivery is accepted only when signed correctly. |
-| 4 | Configure all shared pre-flight environment variables in Netlify’s environment settings and confirm the database permits the deployed function’s network access. | The library query returns an empty state for a signed-in buyer with no purchases. |
-| 5 | Register the exact Netlify endpoint in Stripe and set `STRIPE_WEBHOOK_SECRET` from that endpoint. | A completed test checkout produces one `purchases` row and one library card. |
+| Vercel | port Express เป็น Node Functions | webhook ใช้ `arrayBuffer()` ก่อน verify signature [3] |
+| Netlify | port API เป็น Functions หรือ Express adapter | map `/api/stripe/webhook` และ preserve raw body [4] |
+| Cloudflare | rewrite เป็น Worker-compatible fetch runtime | อย่าใช้ Express/Node APIs ที่ Worker ไม่รองรับ [5] |
+| Generic Node host | ใช้ Express architecture เดิม | inject secrets, TLS database, HTTPS domain |
 
-### 10.4 Cloudflare Workers runbook
+### Environment checklist
 
-Cloudflare Workers is a fetch-style serverless runtime. It can host static assets and API code, but this Node/Express project requires a Worker-compatible rewrite rather than a direct `pnpm start` deployment.[5]
+ตั้งค่าใน secret manager ของ provider เท่านั้น: `DATABASE_URL`, `JWT_SECRET`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `VITE_STRIPE_PUBLISHABLE_KEY` รวมถึง environment variables ของ OAuth/analytics ที่ template ต้องใช้
 
-| Step | Action | Verification |
-| --- | --- | --- |
-| 1 | Create a Worker project and configure static assets from the Vite build output. Use a `fetch(request, env)` entry point for APIs. | Storefront assets resolve from the Worker deployment. |
-| 2 | Port tRPC/OAuth routes away from Express middleware to a Workers-compatible router. Replace Node-only request/response assumptions and confirm the selected MySQL/TiDB access layer works in the Worker runtime. | Auth and `/library` function in a Workers preview environment. |
-| 3 | Implement `/api/stripe/webhook` with the original `Request`: collect `await request.arrayBuffer()` before parsing, pass the bytes and `request.headers.get("Stripe-Signature")` to Stripe verification, then grant entitlements. | Stripe verification fails for a modified body and passes for a valid test event. |
-| 4 | Store `DATABASE_URL`, OAuth variables, and Stripe secrets using Worker secrets; do not put them in `wrangler.toml` or source control. | No secret values appear in source or build output. |
-| 5 | Configure the Worker’s public custom domain, update the OAuth callback origin, and register `https://<worker-domain>/api/stripe/webhook` in Stripe. | Sign-in, payment fulfillment, library access, and reader access all succeed in production. |
+## 12. Verified Before This Handoff
 
-### 10.5 Generic Node hosting runbook
-
-For a conventional Node host such as Railway, Render, Fly.io, or a container-capable service, the application can run with its existing architecture: install dependencies, run `pnpm build`, then run `pnpm start`. The host must expose the process over HTTPS and inject the shared pre-flight variables. Point Stripe to `/api/stripe/webhook`, then run the same post-deploy payment test. This is the least invasive non-managed-hosting path because it preserves Express, raw-body webhook ordering, and the current server entry point.
-
-For every provider, validate the payment lifecycle in this strict order before launch: sign in; call authenticated `library.list`; add an edition to cart; create a test Checkout Session; complete payment; confirm Stripe delivery; verify the `purchases` row; refresh the library; and open the protected reader. Do not treat a redirect to the success URL as proof that a buyer has been granted access.
-
-## 11. Guardrails for Future Changes
-
-Keep commercial logic on the server. In particular, do not trust product price, currency, entitlement, or reader content authorization sent from a browser. Do not use the cart as a purchase record, do not mark an order paid from a success page, and do not disable Stripe signature verification to make local testing easier.
-
-For database changes, modify `drizzle/schema.ts`, generate a migration, inspect the generated SQL, and apply it through the approved database migration workflow. Avoid destructive migrations unless they are deliberately reviewed and a backup/rollback plan exists. The current test suite should grow with each security-sensitive rule, especially checkout input validation and reader authorization.
-
-## 12. Verified Before Handoff
-
-At the time of this handoff, `pnpm check` completed without TypeScript errors, `pnpm build` completed successfully, and `pnpm test` completed with twelve passing tests across catalog, cart calculations, authentication, checkout validation, webhook entitlement parsing, authenticated library retrieval, and protected reader access. A runtime request to the authenticated endpoint `GET /api/trpc/library.list` also returned HTTP 200 with an expected empty entitlement array for the current signed-in account. Visual review was completed for the desktop storefront, authenticated library state, mobile storefront, and buyer-only reader state. Mobile layout should be rechecked whenever significant copy, navigation, or product-card changes are introduced.
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **20 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback และ IntersectionObserver reveal/cleanup หน้าร้าน desktop/mobile ได้รับการตรวจ layout; admin จะมี skeleton ระหว่าง OAuth/query initial load ซึ่งเป็น expected loading state
 
 ## References
 

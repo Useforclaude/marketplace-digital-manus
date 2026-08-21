@@ -26,6 +26,40 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
+ * Catalog records are kept in the database so an administrator can change
+ * storefront metadata and price without deploying a new frontend bundle.
+ * The paid content itself stays server-side in the `content` column.
+ */
+export const storeProducts = mysqlTable(
+  "store_products",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    slug: varchar("slug", { length: 96 }).notNull(),
+    productType: mysqlEnum("productType", ["ebook", "course"]).notNull(),
+    status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+    title: varchar("title", { length: 220 }).notNull(),
+    subtitle: varchar("subtitle", { length: 255 }),
+    description: text("description").notNull(),
+    category: varchar("category", { length: 120 }).notNull(),
+    coverUrl: varchar("coverUrl", { length: 1024 }).notNull(),
+    coverKey: varchar("coverKey", { length: 512 }),
+    accent: mysqlEnum("accent", ["lime", "violet", "rose", "cyan"]).default("lime").notNull(),
+    priceSatang: int("priceSatang").notNull(),
+    currency: varchar("currency", { length: 3 }).default("thb").notNull(),
+    unitCount: int("unitCount").default(1).notNull(),
+    durationLabel: varchar("durationLabel", { length: 80 }).notNull(),
+    content: text("content").notNull(),
+    createdBy: int("createdBy").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [uniqueIndex("store_products_slug_unique").on(table.slug)],
+);
+
+export type StoreProductRecord = typeof storeProducts.$inferSelect;
+export type InsertStoreProduct = typeof storeProducts.$inferInsert;
+
+/**
  * Local business entitlement records. Stripe remains the source of truth for
  * payment details; this table only tracks which account can open which edition.
  */

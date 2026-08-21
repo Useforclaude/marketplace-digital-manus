@@ -1,5 +1,5 @@
-import { findProduct } from "@shared/products";
 import Stripe from "stripe";
+import { getPublishedProductsBySlugs } from "./db";
 
 export type CheckoutItemInput = {
   productId: string;
@@ -18,28 +18,30 @@ function getStripeClient() {
   return new Stripe(key);
 }
 
-export function validateCheckoutItems(items: CheckoutItemInput[]) {
+export async function validateCheckoutItems(items: CheckoutItemInput[]) {
   const normalized = new Map<string, number>();
 
   for (const item of items) {
-    const product = findProduct(item.productId);
-    if (!product) throw new Error(`Unknown product: ${item.productId}`);
     const quantity = Math.max(1, Math.min(5, Math.floor(item.quantity)));
-    normalized.set(product.id, Math.min(5, (normalized.get(product.id) ?? 0) + quantity));
+    normalized.set(item.productId, Math.min(5, (normalized.get(item.productId) ?? 0) + quantity));
   }
 
-  if (normalized.size === 0) throw new Error("Your cart is empty.");
+  if (normalized.size === 0) throw new Error("ตะกร้าสินค้าว่างอยู่");
+
+  const products = await getPublishedProductsBySlugs(Array.from(normalized.keys()));
+  if (products.length !== normalized.size) throw new Error("มีสินค้าที่ไม่พร้อมจำหน่ายอยู่ในตะกร้า");
+  const productBySlug = new Map(products.map((product) => [product.slug, product]));
 
   return Array.from(normalized.entries()).map(([productId, quantity]) => {
-    const product = findProduct(productId)!;
+    const product = productBySlug.get(productId)!;
     return {
       price_data: {
         currency: product.currency,
         product_data: {
           name: product.title,
-          description: product.description,
+          description: product.subtitle ?? product.description,
         },
-        unit_amount: product.priceCents,
+        unit_amount: product.priceSatang,
       },
       quantity,
       productId,
@@ -56,7 +58,7 @@ export async function createCheckoutSession({
   items: CheckoutItemInput[];
   origin: string;
 }) {
-  const lineItems = validateCheckoutItems(items);
+  const lineItems = await validateCheckoutItems(items);
   const productIds = lineItems.map((item) => item.productId);
   const stripe = getStripeClient();
 

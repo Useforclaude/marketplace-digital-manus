@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { findProduct, formatCurrencyFromCents, products } from "./products";
+import { formatCurrencyFromSatang } from "./products";
 
-describe("product catalog", () => {
-  it("has a unique valid identifier and positive server-side price for every edition", () => {
-    const ids = products.map((product) => product.id);
-    expect(new Set(ids).size).toBe(products.length);
-    expect(products.every((product) => product.priceCents >= 50 && product.currency === "usd")).toBe(true);
+describe("Thai product presentation", () => {
+  it("formats satang as a Thai-baht display amount", () => {
+    const amount = formatCurrencyFromSatang(79000);
+    expect(amount).toContain("790");
+    expect(amount).toMatch(/฿|THB/);
   });
 
-  it("finds products by their public catalog id and formats a price from cents", () => {
-    expect(findProduct("atlas-of-attention")?.title).toBe("Atlas of Attention");
-    expect(formatCurrencyFromCents(2400)).toBe("$24");
+  it("does not expose a static in-source catalog as a payment authority", async () => {
+    expect("products" in (await import("./products"))).toBe(false);
   });
 });

@@ -24,40 +24,41 @@ export function StoreHeader({ onOpenCart }: StoreHeaderProps) {
 
         <nav className="hidden items-center gap-7 text-[11px] font-semibold tracking-[0.17em] text-white/58 md:flex">
           <a className="transition-colors hover:text-white" href="#editions">
-            EDITIONS
+            สินค้า
           </a>
           <a className="transition-colors hover:text-white" href="#membership">
-            HOW IT WORKS
+            วิธีใช้งาน
           </a>
           {isAuthenticated && (
             <Link className="transition-colors hover:text-white" href="/library">
-              LIBRARY
+              คลังของฉัน
             </Link>
           )}
+          {user?.role === "admin" && <Link className="text-[#d5ff45] transition-colors hover:text-white" href="/admin">หลังบ้าน</Link>}
         </nav>
 
         <div className="flex items-center gap-1.5 sm:gap-3">
           {loading ? null : isAuthenticated ? (
             <button
               type="button"
-              title={user?.name ?? "Account"}
+              title="ออกจากระบบ"
               onClick={() => void logout()}
               className="hidden items-center gap-2 rounded-full px-2.5 py-2 text-[11px] font-semibold tracking-wide text-white/70 transition-colors hover:bg-white/7 hover:text-white sm:flex">
               <UserRound size={14} />
-              <span className="max-w-24 truncate">{user?.name?.split(" ")[0] ?? "ACCOUNT"}</span>
+              <span className="max-w-24 truncate">ออกจากระบบ</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={startLogin}
               className="hidden rounded-full border border-white/12 px-3.5 py-2 text-[10px] font-semibold tracking-[0.13em] text-white/84 transition-colors hover:border-white/28 hover:bg-white/6 sm:block">
-              SIGN IN
+              เข้าสู่ระบบ
             </button>
           )}
           <button
             type="button"
             onClick={onOpenCart}
-            aria-label={`Open cart with ${itemCount} items`}
+            aria-label={`เปิดตะกร้าสินค้า มี ${itemCount} รายการ`}
             className="relative grid h-9 w-9 place-items-center rounded-full border border-white/12 text-white transition-colors hover:border-[#d5ff45] hover:text-[#d5ff45]"
           >
             <ShoppingBag size={16} strokeWidth={1.8} />

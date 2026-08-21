@@ -1,41 +1,31 @@
-type ReaderChapter = {
-  kicker: string;
-  title: string;
-  body: string[];
-};
+type ReaderChapter = { kicker: string; title: string; body: string[] };
 
-export type ReaderEdition = {
-  intro: string;
-  chapters: ReaderChapter[];
-};
+export type ReaderEdition = { intro: string; chapters: ReaderChapter[] };
 
-/**
- * Server-only sample edition content. Replace individual chapter arrays when
- * publishing the creator's final manuscript; never import this module client-side.
- */
+/** Server-only Thai sample manuscripts. The browser receives these only after entitlement verification. */
 export const readerEditions: Record<string, ReaderEdition> = {
   "atlas-of-attention": {
-    intro: "Attention is not the absence of distraction. It is the decision to return—again and again—to what is worth your care.",
+    intro: "สมาธิไม่ใช่การไม่มีสิ่งรบกวน แต่คือการตัดสินใจกลับมาอยู่กับเรื่องที่ควรได้รับความใส่ใจของเราอีกครั้งและอีกครั้ง",
     chapters: [
-      { kicker: "CHAPTER 01", title: "Choose a horizon", body: ["A useful day begins before the first notification. Name the single horizon that would make the day feel honestly moved forward.", "The horizon does not need to be grand. It needs to be visible enough that your attention can recognize its way home."] },
-      { kicker: "CHAPTER 02", title: "Make room for return", body: ["Every interruption leaves a small residue. Rather than demanding perfect focus, create a gentle ritual that makes returning inexpensive.", "Close the loop in writing: leave a sentence for your future self describing the next smallest move. The page will hold the thread while you are away."] },
-      { kicker: "CHAPTER 03", title: "Protect the useful edge", body: ["Not every task deserves a whole day. Protect the edge where your particular judgment changes the outcome, then let the rest become simpler.", "The goal is not to do less as a performance. It is to make space for the kind of work only you can notice."] },
+      { kicker: "บทที่ 01", title: "เลือกขอบฟ้าของวัน", body: ["วันทำงานที่มีความหมายเริ่มต้นก่อนการแจ้งเตือนครั้งแรก ลองเรียกชื่อสิ่งเดียวที่ถ้าได้ขยับแล้ว วันนี้จะรู้สึกว่าก้าวไปข้างหน้าจริง ๆ", "ขอบฟ้านั้นไม่จำเป็นต้องยิ่งใหญ่ เพียงชัดพอที่ความสนใจของคุณจะหาทางกลับมาเจอมันได้"] },
+      { kicker: "บทที่ 02", title: "ทำให้การกลับมาเป็นเรื่องง่าย", body: ["ทุกการขัดจังหวะทิ้งเศษเล็ก ๆ ไว้กับงาน แทนที่จะเรียกร้องสมาธิที่สมบูรณ์แบบ จงสร้างพิธีเล็ก ๆ ที่ทำให้การกลับมาทำงานต่อไม่ต้องใช้พลังมาก", "ก่อนพัก ให้ทิ้งประโยคสั้น ๆ ไว้บอกตัวเองว่าก้าวถัดไปคืออะไร หน้ากระดาษจะช่วยถือเส้นด้ายของงานไว้ให้คุณ"] },
+      { kicker: "บทที่ 03", title: "ปกป้องขอบที่มีคุณค่า", body: ["ไม่ใช่ทุกงานควรได้รับเวลาทั้งวัน จงรักษาส่วนที่การตัดสินใจเฉพาะตัวของคุณทำให้ผลลัพธ์เปลี่ยนไป แล้วทำให้ส่วนที่เหลือง่ายขึ้น", "เป้าหมายไม่ใช่การทำให้น้อยลงเพื่อให้ดูดี แต่คือการเปิดพื้นที่ให้กับงานประเภทที่มีเพียงคุณเท่านั้นที่มองเห็นคุณค่าของมัน"] },
     ],
   },
   "interface-intelligence": {
-    intro: "An interface is a promise about what will happen next. The best ones make that promise legible before the user has to ask.",
+    intro: "อินเทอร์เฟซคือคำสัญญาว่าอะไรจะเกิดขึ้นต่อไป อินเทอร์เฟซที่ดีทำให้คำสัญญานั้นชัดเจนก่อนที่ผู้ใช้จะต้องถาม",
     chapters: [
-      { kicker: "CHAPTER 01", title: "Start with the next question", body: ["Interfaces often begin with a list of available actions. Begin instead with the next question the person needs answered.", "A good screen reduces uncertainty. A good system makes the reduction feel inevitable."] },
-      { kicker: "CHAPTER 02", title: "Give choices a shape", body: ["Hierarchy is not decoration. It is the quiet architecture that tells people which choice has consequence, which is reversible, and which can wait.", "Let the primary path feel calm. Reserve visual urgency for the moment it is truly earned."] },
-      { kicker: "CHAPTER 03", title: "Design the after", body: ["The action is rarely the end of the experience. The confirmation, recovery path, and next invitation tell the user whether the system has kept its word.", "Design the after with as much attention as the click itself."] },
+      { kicker: "บทที่ 01", title: "เริ่มจากคำถามถัดไป", body: ["หลายหน้าจอเริ่มจากการลิสต์สิ่งที่ทำได้ ลองเริ่มจากคำถามถัดไปที่ผู้ใช้ต้องการคำตอบแทน", "หน้าจอที่ดีลดความไม่แน่ใจ ส่วนระบบที่ดีทำให้การลดความไม่แน่ใจนั้นรู้สึกเป็นธรรมชาติ"] },
+      { kicker: "บทที่ 02", title: "ทำให้ทางเลือกมีรูปทรง", body: ["ลำดับชั้นไม่ใช่ของตกแต่ง แต่มันคือสถาปัตยกรรมเงียบ ๆ ที่บอกว่าทางเลือกไหนมีผล ทางเลือกไหนย้อนกลับได้ และอะไรที่รอได้", "ให้เส้นทางหลักรู้สึกสงบ และเก็บความเร่งด่วนไว้ใช้ในเวลาที่จำเป็นจริง ๆ"] },
+      { kicker: "บทที่ 03", title: "ออกแบบช่วงหลังการคลิก", body: ["การกระทำไม่ค่อยเป็นจุดจบของประสบการณ์ การยืนยันผล ทางแก้ไข และคำเชิญให้ทำสิ่งถัดไปต่างหากที่บอกว่าระบบรักษาสัญญาหรือไม่", "ออกแบบสิ่งที่เกิดหลังการคลิกด้วยความใส่ใจไม่แพ้ตัวปุ่มนั้นเอง"] },
     ],
   },
   "creative-compass": {
-    intro: "Direction does not arrive as certainty. It arrives as a small pattern you can recognize, name, and follow for one more step.",
+    intro: "ทิศทางไม่ได้มาถึงในรูปของความมั่นใจเสมอไป บ่อยครั้งมันมาเป็นรูปแบบเล็ก ๆ ที่คุณมองเห็น เรียกชื่อ และเลือกเดินตามต่อได้อีกหนึ่งก้าว",
     chapters: [
-      { kicker: "CHAPTER 01", title: "Find the live question", body: ["When a project feels vague, it is usually carrying too many questions at once. Find the one that still has energy in it.", "A live question does not demand an immediate answer. It asks for a better next experiment."] },
-      { kicker: "CHAPTER 02", title: "Use constraints as a compass", body: ["A constraint is not only a limitation. It can be a way of deciding what the work refuses to become.", "Write down what must remain true. That sentence can guide a dozen small choices without making them all at once."] },
-      { kicker: "CHAPTER 03", title: "Leave evidence", body: ["Creative momentum is easier to recover when the work leaves evidence: a sketch, an annotated reference, an unfinished sentence.", "Make the next return generous. Your future self is the first reader you are designing for."] },
+      { kicker: "บทที่ 01", title: "หาคำถามที่ยังมีชีวิต", body: ["เมื่อโปรเจกต์รู้สึกคลุมเครือ มักเป็นเพราะมันกำลังแบกคำถามมากเกินไป ลองหาคำถามเดียวที่ยังมีพลังอยู่", "คำถามที่มีชีวิตไม่บังคับให้คุณตอบทันที แต่มันชวนให้คุณออกแบบการทดลองถัดไปที่ดีขึ้น"] },
+      { kicker: "บทที่ 02", title: "ใช้ข้อจำกัดเป็นเข็มทิศ", body: ["ข้อจำกัดไม่ใช่เพียงสิ่งที่ขวางทาง มันอาจเป็นวิธีตัดสินใจว่างานชิ้นนี้จะไม่กลายเป็นอะไร", "เขียนสิ่งที่ต้องคงไว้ให้ชัด ประโยคนี้จะพาการตัดสินใจเล็ก ๆ จำนวนมากไปในทิศเดียวกัน"] },
+      { kicker: "บทที่ 03", title: "ทิ้งหลักฐานไว้ให้ตัวเอง", body: ["แรงส่งของงานสร้างสรรค์กลับคืนได้ง่ายเมื่อมีหลักฐานรออยู่ ทั้งสเก็ตช์ อ้างอิงที่จดไว้ หรือประโยคที่ยังไม่จบ", "ทำให้การกลับมาครั้งถัดไปใจดีกับตัวเองในอนาคต เพราะคนแรกที่คุณกำลังออกแบบประสบการณ์ให้คือคุณเอง"] },
     ],
   },
 };

@@ -21,7 +21,7 @@ export function setCartLineQuantity(lines: CartLine[], productId: string, quanti
 export function getCartSummary(lines: CartLine[], products: Product[]) {
   const items = lines
     .map((line) => {
-      const product = products.find((item) => item.id === line.productId);
+      const product = products.find((item) => item.slug === line.productId);
       return product ? { ...line, product } : null;
     })
     .filter((item): item is CartItem => Boolean(item));
@@ -29,6 +29,6 @@ export function getCartSummary(lines: CartLine[], products: Product[]) {
   return {
     items,
     itemCount: items.reduce((total, line) => total + line.quantity, 0),
-    subtotal: items.reduce((total, item) => total + item.product.priceCents * item.quantity, 0),
+    subtotal: items.reduce((total, item) => total + item.product.priceSatang * item.quantity, 0),
   };
 }

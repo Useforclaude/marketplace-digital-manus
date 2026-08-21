@@ -1,7 +1,6 @@
-import { findProduct } from "@shared/products";
 import type { Request, Response } from "express";
 import Stripe from "stripe";
-import { grantPurchaseAccess } from "./db";
+import { getProductsBySlugs, grantPurchaseAccess } from "./db";
 
 function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -9,7 +8,7 @@ function getStripeClient() {
   return new Stripe(key);
 }
 
-export function parseStripeEntitlement(session: Stripe.Checkout.Session) {
+export async function parseStripeEntitlement(session: Stripe.Checkout.Session) {
   const userId = Number(session.metadata?.user_id ?? session.client_reference_id);
   if (!Number.isInteger(userId) || userId < 1) throw new Error("Checkout session is missing a valid buyer ID.");
 
@@ -20,13 +19,17 @@ export function parseStripeEntitlement(session: Stripe.Checkout.Session) {
     throw new Error("Checkout session contains invalid product metadata.");
   }
 
-  if (!Array.isArray(productIds) || productIds.length === 0 || productIds.some((id) => typeof id !== "string" || !findProduct(id))) {
+  if (!Array.isArray(productIds) || productIds.length === 0 || productIds.some((id) => typeof id !== "string")) {
     throw new Error("Checkout session contains unknown products.");
   }
 
+  const uniqueProductIds = Array.from(new Set(productIds as string[]));
+  const products = await getProductsBySlugs(uniqueProductIds);
+  if (products.length !== uniqueProductIds.length) throw new Error("Checkout session contains unknown products.");
+
   return {
     userId,
-    productIds: Array.from(new Set(productIds as string[])),
+    productIds: uniqueProductIds,
     sessionId: session.id,
     paymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
   };
@@ -54,7 +57,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.payment_status === "paid") {
-        const entitlement = parseStripeEntitlement(session);
+        const entitlement = await parseStripeEntitlement(session);
         await Promise.all(
           entitlement.productIds.map((productId) =>
             grantPurchaseAccess({

@@ -1,5 +1,9 @@
-import { formatCurrencyFromCents, productById, products, type StoreProduct } from "@shared/products";
+import { formatCurrencyFromSatang } from "@shared/products";
 
-export { productById, products, type StoreProduct as Product };
+export type { StoreProduct as Product } from "@shared/products";
 
-export const formatCurrency = (valueCents: number) => formatCurrencyFromCents(valueCents);
+export const formatCurrency = (valueSatang: number) => formatCurrencyFromSatang(valueSatang);
+
+export function formatProductType(productType: "ebook" | "course") {
+  return productType === "ebook" ? "eBook · HTML" : "คอร์สออนไลน์";
+}

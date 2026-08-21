@@ -14,3 +14,16 @@
 - [x] Write handoff.md with the system architecture, technology stack, folder map, development workflow, commerce/access lifecycle, configuration notes, deployment guidance, and safe maintenance workflow.
 - [x] Write explicit deployment runbooks for Vercel, Netlify, and Cloudflare covering build/start behavior, environment variables, database connectivity, Stripe webhook setup, and raw-body constraints.
 - [x] Validate that the authenticated protected library endpoint responds successfully after member authentication.
+- [x] Design database-backed product and order management models for administrator use.
+- [x] Build an admin dashboard for products, prices, cover-image URLs, course/eBook metadata, and purchase records.
+- [x] Localize storefront, library, cart, checkout messages, and reader navigation into Thai for Thai customers.
+- [x] Add clear gradient “เพิ่มลงตะกร้า” and “ซื้อเลย” purchase actions with appropriate sign-in and checkout states.
+- [x] Add polished progressive scroll-reveal motion with reduced-motion support.
+- [x] Harden server-side authorization, input validation, security headers, rate limits, and sensitive-content boundaries against tampering and spam.
+- [x] Update automated tests and handoff.md to cover the administrator workflow, Thai commerce flow, and security model.
+- [x] Commit and push the administrator, localization, UX, and security improvements to Useforclaude/marketplace-digital-manus.
+- [x] Implement true scroll-triggered reveal behavior with a reduced-motion fallback.
+- [x] Add automated verification for the scroll-reveal helper.
+- [x] Add an IntersectionObserver integration test for scroll reveal and observer cleanup.
+- [ ] Sync the latest project files into the GitHub working copy and push the administrator, Thai storefront, security, test, and handoff updates.
+- [ ] Verify the GitHub working copy and remote HEAD include the new commit and updated files.

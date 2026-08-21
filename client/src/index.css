@@ -97,10 +97,30 @@
   .font-mono { font-family: "DM Mono", monospace; }
   .eyebrow { font-family: "DM Mono", monospace; font-size: 0.66rem; font-weight: 500; letter-spacing: 0.16em; color: rgba(255,255,255,0.48); }
   .hairline { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); }
+  .gradient-cta {
+    background: linear-gradient(115deg, #8b5cf6 0%, #c026d3 48%, #e879f9 100%);
+    background-size: 160% 160%;
+    box-shadow: 0 12px 30px rgba(139, 92, 246, 0.24), inset 0 1px 0 rgba(255,255,255,0.24);
+    transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-position 240ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .gradient-cta:hover { background-position: 100% 30%; box-shadow: 0 16px 38px rgba(192, 38, 211, 0.34), inset 0 1px 0 rgba(255,255,255,0.26); transform: translateY(-2px); }
+  .gradient-cta:active { transform: scale(0.97); }
+  .gradient-panel { background: radial-gradient(circle at 90% 10%, rgba(217, 70, 239, .52), transparent 35%), linear-gradient(128deg, #4c1d95 0%, #7e22ce 46%, #0e7490 112%); box-shadow: 0 24px 70px rgba(76, 29, 149, .24); }
+  .reveal { opacity: 0; transform: translate3d(0, 22px, 0); transition: opacity 620ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .reveal.is-visible { opacity: 1; transform: translate3d(0, 0, 0); }
+  .reveal-delay-1 { transition-delay: 80ms; }
+  .reveal-delay-2 { transition-delay: 140ms; }
+  .reveal-delay-3 { transition-delay: 200ms; }
+  .admin-field { display: flex; flex-direction: column; gap: .45rem; color: rgba(255,255,255,.64); font-size: .62rem; font-weight: 700; letter-spacing: .08em; }
+  .admin-field input, .admin-field select, .admin-field textarea { width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: .7rem; background: rgba(0,0,0,.22); padding: .68rem .76rem; color: #fff; font-size: .75rem; font-weight: 500; letter-spacing: normal; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+  .admin-field textarea { resize: vertical; }
+  .admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { border-color: rgba(216, 180, 254, .75); background: rgba(255,255,255,.05); box-shadow: 0 0 0 3px rgba(168, 85, 247, .16); }
+  .admin-field select option { background: #15131b; color: white; }
   @media (min-width: 640px) { .container { padding-left: 1.5rem; padding-right: 1.5rem; } }
   @media (min-width: 1024px) { .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; } }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  .reveal { opacity: 1; transform: none; animation: none; }
 }

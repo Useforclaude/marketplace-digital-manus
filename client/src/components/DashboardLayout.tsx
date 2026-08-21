@@ -28,8 +28,8 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "ภาพรวม", path: "/admin" },
+  { icon: Users, label: "สินค้าและคำสั่งซื้อ", path: "/admin" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -62,10 +62,10 @@ export default function DashboardLayout({
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-6">
             <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Sign in to continue
+              เข้าสู่ระบบเพื่อไปต่อ
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
+              หลังบ้านนี้เปิดให้ผู้ดูแลระบบเท่านั้น
             </p>
           </div>
           <Button
@@ -73,11 +73,15 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+              เข้าสู่ระบบ
           </Button>
         </div>
       </div>
     );
+  }
+
+  if (user.role !== "admin") {
+    return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] p-6 text-center text-white"><div><h1 className="font-display text-4xl">ไม่มีสิทธิ์เข้าถึงหลังบ้าน</h1><p className="mt-3 text-sm text-white/55">บัญชีนี้ไม่ใช่ผู้ดูแลระบบ</p></div></div>;
   }
 
   return (
@@ -169,7 +173,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-semibold tracking-tight truncate">
-                    Navigation
+                    Brightline Admin
                   </span>
                 </div>
               ) : null}
@@ -224,7 +228,7 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>ออกจากระบบ</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
