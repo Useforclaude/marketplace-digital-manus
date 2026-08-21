@@ -10,7 +10,7 @@
 
 | ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic layered-ensemble hero ของ fictional business mentors ที่เป็นต้นฉบับและสื่อความสำเร็จจากการเรียนรู้อย่างต่อเนื่อง, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic single-mentor hero ในแสงเงาลึกลับกับกระดานหมากรุกดำและหมากคิงสีทอง เพื่อสื่อถึงการคิดเชิงกลยุทธ์โดยไม่รับประกันความสำเร็จ, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
 | Social proof | แสดง feedback เฉพาะผู้เรียนที่ซื้อจริง, ยินยอม และผ่านการอนุมัติแล้ว; หากยังไม่มีข้อมูลจะใช้ empty state ที่โปร่งใส โดยไม่มีข้อมูลตัวอย่างหรือคำยืนยันที่สร้างขึ้น | `client/src/pages/homeContent.ts`, `client/src/pages/Home.tsx`, `server/routers.ts` |
 | Testimonial moderation | ผู้เรียนส่ง feedback จากสินค้าที่ตนซื้อพร้อม consent; admin เปลี่ยนสถานะเป็น `approved`, `hidden`, `rejected` หรือ `pending` ได้ | `testimonials`, `client/src/pages/MemberDashboard.tsx`, `client/src/pages/Admin.tsx` |
 | สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
@@ -68,7 +68,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 
 | Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
-| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset original fictional mentor ensemble จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area; social proof ต้อง query ได้เพียง approved+consented feedback |
+| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset fictional single mentor + gold king chess piece จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area; social proof ต้อง query ได้เพียง approved+consented feedback |
 | `client/src/pages/homeContent.ts` | hero asset และ copy/structure ของ social proof | เก็บ URL hero ใหม่และ social-proof disclosure ให้เป็น pure content ที่ test ได้; ห้ามใส่ชื่อ, คำพูด, rating, outcome metric หรือข้อมูลตัวอย่างที่อาจถูกมองเป็นรีวิวจริง |
 | `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิกและ form ส่ง feedback | รับ feedback เฉพาะจากสินค้าที่ซื้อ; ต้องติ๊ก consent ก่อนส่ง; สิ่งที่ผู้ใช้ส่งใหม่กลับสู่ `pending` เสมอ |
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
@@ -181,7 +181,7 @@ Manus Preview ต้อง render เว็บไซต์ใน managed frame �
 
 ## 9. Copywriting Direction
 
-หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน และใช้กลุ่ม fictional business mentors ที่มีบุคลิกการเป็นผู้นำต่างกันเพื่อทำให้ปลายทางดูจับต้องได้ โดยเว้นด้านซ้ายเป็น text-safe area เสมอ ภาพเป็นตัวละครต้นฉบับและไม่สื่อว่าเกี่ยวข้องกับผู้มีชื่อเสียงจริง eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
+หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน และใช้ mentor ธุรกิจสมมติคนเดียวที่อยู่ในแสงเงา กำลังวางหมากคิงสีทองบนกระดานหมากรุกดำ เพื่อสื่อถึงการตัดสินใจอย่างมีกลยุทธ์ ไม่ใช่การรับประกัน “เคล็ดลับ” หรือความสำเร็จ ภาพเป็นตัวละครต้นฉบับ ไม่สื่อว่าเกี่ยวข้องกับผู้มีชื่อเสียงจริง และเว้นด้านซ้ายเป็น text-safe area เสมอ eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
 
 ส่วน “ผลลัพธ์จากผู้เรียน” ใช้หลัก **social proof ที่รอหลักฐาน ไม่ใช่การสร้างหลักฐาน**: สมาชิกส่ง feedback ได้เฉพาะสินค้าที่มี entitlement และต้องติ๊ก consent ที่ชัดเจนทุกครั้ง ผลงานใหม่เข้า `pending` และแสดงในหลังบ้านให้ admin อนุมัติ, ซ่อน, ปฏิเสธ หรือส่งกลับเป็นรอตรวจ เมื่อ public API จะคืนเฉพาะ `approved` + `consentToPublish = true` เท่านั้น ห้ามเติม quote, ชื่อบุคคล, คะแนนดาว, ตัวเลขผลลัพธ์ หรือ testimonial จำลองไม่ว่ากรณีใด
 

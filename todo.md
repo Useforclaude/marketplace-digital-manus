@@ -63,3 +63,5 @@
 - [x] Integrate the selected ensemble hero, verify desktop/mobile composition, then commit and push the feature branch update.
 - [x] Create and integrate an original fictional mentor ensemble with distinct global-business energy and no resemblance to real individuals.
 - [x] Verify the new mentor hero on desktop/mobile, update handoff, then commit and push the feature branch update.
+- [x] Create and integrate a cinematic original single-mentor hero: shadowed tycoon, half-lit face, black chessboard, and a gold chess piece in hand.
+- [x] Verify the mysterious mentor hero on desktop/mobile, update handoff, then commit and push the feature branch update.

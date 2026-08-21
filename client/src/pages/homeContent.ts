@@ -1,4 +1,4 @@
-export const HOME_HERO_IMAGE = "/manus-storage/brightline-fictional-mentor-ensemble-hero_d9cd937d.jpg";
+export const HOME_HERO_IMAGE = "/manus-storage/brightline-mysterious-tycoon-chess-hero_3f56580b.jpg";
 
 export const SOCIAL_PROOF = {
   eyebrow: "ผลลัพธ์จากผู้เรียน",
