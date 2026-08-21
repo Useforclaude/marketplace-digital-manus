@@ -42,3 +42,9 @@
 - [x] Define the shared lime–emerald CTA style used by member Dashboard actions.
 - [x] Add UI-focused member Dashboard tests for empty, purchased-content, and direct-access states.
 - [x] Add component-level dashboard tests for empty content, purchased cards/history, and read/learn links.
+- [x] Create a cinematic hero background showing an aspirational professional studying on a MacBook, composed to support Thai copy legibility.
+- [x] Integrate the hero image with a dark progressive overlay and responsive cropping in the storefront.
+- [x] Rewrite hero and conversion copy around the pain point of searching for a practical path from aspiration to sustained success.
+- [x] Test the new visual/copy treatment on desktop and mobile, then commit and push the feature branch update.
+- [x] Verify the generated cinematic hero asset completed successfully and is not a placeholder.
+- [ ] Commit and push the cinematic hero and success-path copy update to the feature branch.

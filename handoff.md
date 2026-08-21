@@ -10,7 +10,7 @@
 
 | ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/hooks/useScrollReveal.ts` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic hero, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/hooks/useScrollReveal.ts` |
 | สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
 | หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้า ราคา หน้าปก เนื้อหา JSON และดู entitlement ที่ชำระแล้ว | `client/src/pages/Admin.tsx`, `server/routers.ts` |
 | รูปหน้าปก | อัปโหลดผ่าน server เฉพาะ admin, จำกัด MIME และขนาดไฟล์ | `admin.uploadCover`, `server/storage.ts` |
@@ -66,7 +66,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 
 | Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
-| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card |
+| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ `/manus-storage/brightline-success-path-hero_2bafa954.jpg` พร้อม progressive dark overlay และ text-safe left area |
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
 | `client/src/pages/Admin.tsx` | หลังบ้านสินค้าและคำสั่งซื้อ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง |
 | `client/src/pages/Library.tsx` | คลังส่วนตัว | แสดงเฉพาะ entitlement ของ current user |
@@ -174,7 +174,7 @@ Manus Preview ต้อง render เว็บไซต์ใน managed frame �
 
 ## 9. Copywriting Direction
 
-หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: เปิดด้วย pain ที่ผู้ซื้อรู้สึก (“ไม่ต้องจำทุกอย่าง”), ตามด้วย outcome ที่จับต้องได้ (“กลับมาใช้ให้ทัน”), สื่อประโยชน์ของสินค้าเป็นภาษา “คุณ” และทำ CTA ให้บอกผลลัพธ์ชัดเจน เช่น “เลือกความรู้ที่ใช้ได้จริง” และ “เริ่มเรียนเลย” แต่ละ section ผลักเหตุผลเดียว—ปัญหา, ทางเลือกสินค้า, วิธีได้รับสิทธิ์, และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
+หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
 
 ## 10. Local Development Workflow
 
@@ -225,7 +225,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **22 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup และ summary ของ Dashboard สมาชิก หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **26 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 
