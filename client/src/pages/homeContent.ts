@@ -1,4 +1,4 @@
-export const HOME_HERO_IMAGE = "/manus-storage/brightline-private-jet-success-hero_2628c6a8.jpg";
+export const HOME_HERO_IMAGE = "/manus-storage/brightline-guru-ensemble-hero_5cf2b364.jpg";
 
 export const SOCIAL_PROOF = {
   eyebrow: "ผลลัพธ์จากผู้เรียน",
