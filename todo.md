@@ -47,4 +47,4 @@
 - [x] Rewrite hero and conversion copy around the pain point of searching for a practical path from aspiration to sustained success.
 - [x] Test the new visual/copy treatment on desktop and mobile, then commit and push the feature branch update.
 - [x] Verify the generated cinematic hero asset completed successfully and is not a placeholder.
-- [ ] Commit and push the cinematic hero and success-path copy update to the feature branch.
+- [x] Commit and push the cinematic hero and success-path copy update to the feature branch.
