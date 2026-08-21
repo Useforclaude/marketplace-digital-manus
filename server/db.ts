@@ -166,7 +166,7 @@ export async function listAdminOrders() {
 export async function listUserPurchases(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(purchases).where(eq(purchases.userId, userId));
+  return db.select().from(purchases).where(eq(purchases.userId, userId)).orderBy(desc(purchases.purchasedAt));
 }
 
 export async function hasProductAccess(userId: number, productId: string) {

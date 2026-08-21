@@ -10,11 +10,12 @@
 
 | ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| หน้าร้านภาษาไทย | Dark editorial storefront, gradient CTA, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/hooks/useScrollReveal.ts` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/hooks/useScrollReveal.ts` |
 | สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
 | หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้า ราคา หน้าปก เนื้อหา JSON และดู entitlement ที่ชำระแล้ว | `client/src/pages/Admin.tsx`, `server/routers.ts` |
 | รูปหน้าปก | อัปโหลดผ่าน server เฉพาะ admin, จำกัด MIME และขนาดไฟล์ | `admin.uploadCover`, `server/storage.ts` |
 | สมาชิก | Manus OAuth และ signed session cookie | `server/_core/`, `client/src/_core/hooks/useAuth.ts` |
+| Dashboard สมาชิก | สรุป entitlement, เข้า eBook/คอร์สโดยตรง และดูประวัติคำสั่งซื้อของบัญชีตนเอง | `client/src/pages/MemberDashboard.tsx`, `/dashboard` |
 | ตะกร้า | localStorage สำหรับ UX เท่านั้น ไม่ใช่หลักฐานการซื้อ | `client/src/contexts/CartContext.tsx` |
 | การชำระเงิน | Stripe Checkout Session จากสินค้า published ในฐานข้อมูล | `server/stripe.ts` |
 | การปลดล็อก | Stripe webhook ที่ตรวจ signature สร้าง entitlement ใน `purchases` | `server/stripeWebhook.ts` |
@@ -26,7 +27,7 @@
 | Layer | Technology | หน้าที่ |
 | --- | --- | --- |
 | Frontend | React 19, TypeScript, Vite, Wouter | storefront, cart, library, reader และ admin routes |
-| Styling | Tailwind CSS 4, custom CSS, Manrope, Playfair Display, DM Mono | dark UI, gradient, responsive และ IntersectionObserver/reduced-motion support |
+| Styling | Tailwind CSS 4, custom CSS, Manrope, Playfair Display, DM Mono | dark UI, lime–emerald gradients, responsive และ IntersectionObserver/reduced-motion support |
 | UI primitives | shadcn/ui foundation, Lucide, Sonner | interaction patterns, icons และ notifications |
 | API | Express 4, tRPC 11, Zod | typed API และ validation ที่ `/api/trpc` |
 | Auth | Manus OAuth | สมาชิก, signed session และ user role |
@@ -69,6 +70,8 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
 | `client/src/pages/Admin.tsx` | หลังบ้านสินค้าและคำสั่งซื้อ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง |
 | `client/src/pages/Library.tsx` | คลังส่วนตัว | แสดงเฉพาะ entitlement ของ current user |
+| `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิก | รวมคลัง, ปุ่มเปิดอ่าน/เรียน, summary และประวัติ entitlement โดยไม่รับ content จาก public catalog |
+| `client/src/pages/memberDashboardUtils.ts` | สรุปจำนวน eBook/คอร์ส | เป็น pure utility ที่มี unit test; รักษา behavior empty state และ count ให้ถูกต้อง |
 | `client/src/pages/Reader.tsx` | eBook/course reader | ห้ามย้าย content เข้า public static bundle หรือ `dangerouslySetInnerHTML` |
 | `client/src/components/StoreHeader.tsx` | navigation หน้าร้าน | แสดง link หลังบ้านเฉพาะ admin เพื่อ UX เท่านั้น |
 | `client/src/contexts/CartContext.tsx` | cart ฝั่ง browser | ห้ามถือว่า cart เป็น order, payment หรือ entitlement |
@@ -158,14 +161,22 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 | spam/abuse | API IP window, checkout/admin per-user windows | production ควรเปิด WAF/rate limits ของ hosting เพิ่ม |
 | cross-site mutation | same-origin check สำหรับ state-changing tRPC requests | webhook อยู่ก่อน guard และตรวจ Stripe signature เอง |
 | oversized upload | 5 MB JSON cap, 3 MB raw image cap, allowed MIME | uploads ผ่าน admin only |
-| clickjacking/unsafe browser features | CSP, `frame-ancestors 'none'`, X-Frame-Options, Permissions-Policy | CSP development เปิด inline/eval เฉพาะ Vite; production เข้มกว่า |
+| clickjacking/unsafe browser features | CSP, X-Frame-Options, Permissions-Policy | production ใช้ `frame-ancestors 'none'` และ `X-Frame-Options: DENY`; development allowlist เฉพาะ `manus.im`/`manus.com` เพื่อให้ Managed Preview แสดงผลได้ |
 | insecure transport | `Strict-Transport-Security` เฉพาะ production | hosting ต้อง serve HTTPS |
 
 ### ข้อจำกัดที่ต้องรับรู้
 
 ไม่มีเว็บใดรับประกันได้ว่า “เจาะไม่ได้ 100%” ทีมต้อง patch dependencies, rotate secrets, review Stripe events และใช้ WAF/observability ของ hosting ต่อเนื่อง หากเนื้อหาต้องซ่อนแม้จาก repository collaborators ให้นำ manuscript ออกจาก source control และดึงจาก storage/service ที่จำกัดสิทธิ์ทาง server แทน
 
-## 9. Local Development Workflow
+### Preview policy
+
+Manus Preview ต้อง render เว็บไซต์ใน managed frame ระหว่างพัฒนา ดังนั้น development CSP จึงอนุญาต `frame-ancestors` เฉพาะ `https://manus.im`, subdomains ของ `manus.im`, `https://manus.com` และ subdomains ของ `manus.com` โดยไม่มี `X-Frame-Options` ซึ่งไม่รองรับ allowlist เมื่อ build/run ด้วย `NODE_ENV=production` ระบบกลับไปใช้ `frame-ancestors 'none'` และ `X-Frame-Options: DENY` ทันที ห้ามย้าย allowlist สำหรับ Preview ไปยัง production
+
+## 9. Copywriting Direction
+
+หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: เปิดด้วย pain ที่ผู้ซื้อรู้สึก (“ไม่ต้องจำทุกอย่าง”), ตามด้วย outcome ที่จับต้องได้ (“กลับมาใช้ให้ทัน”), สื่อประโยชน์ของสินค้าเป็นภาษา “คุณ” และทำ CTA ให้บอกผลลัพธ์ชัดเจน เช่น “เลือกความรู้ที่ใช้ได้จริง” และ “เริ่มเรียนเลย” แต่ละ section ผลักเหตุผลเดียว—ปัญหา, ทางเลือกสินค้า, วิธีได้รับสิทธิ์, และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
+
+## 10. Local Development Workflow
 
 | เป้าหมาย | คำสั่ง | ผลลัพธ์ |
 | --- | --- | --- |
@@ -179,7 +190,11 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 
 หลังเปลี่ยน schema ให้ทำตามลำดับ: แก้ `drizzle/schema.ts` → `pnpm drizzle-kit generate` → review SQL → apply migration → เพิ่ม test → `pnpm test && pnpm check && pnpm build`
 
-## 10. Stripe Setup and Go-Live
+### Branch และ rollback workflow
+
+ให้แยก branch เมื่อเป็นงานที่เปลี่ยน flow หรือหน้าหลักของผู้ใช้ เช่น `feature/member-dashboard-brand-refresh` และแบ่ง commit ตามหน่วยงานที่ย้อนกลับได้เอง: โครงสร้าง/route, visual-copy, และ test/docs ทุกครั้งที่จบส่วนย่อยให้ run checks ที่เกี่ยวข้องก่อน commit ใช้ checkpoint ของ Manus สำหรับ rollback ระดับโปรเจกต์ และใช้ Git branch/commit สำหรับ review หรือย้อนเฉพาะชุดงาน ห้ามใช้ `git reset --hard` กับ working tree ของโปรเจกต์
+
+## 11. Stripe Setup and Go-Live
 
 Stripe sandbox ของโปรเจกต์ต้องถูก claim ก่อนใช้งานทดสอบจริง ห้าม commit secret keys, webhook secret หรือ `.env`
 
@@ -193,7 +208,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ทุกครั้งที่เปลี่ยน domain ต้องอัปเดต OAuth callback, Stripe webhook URL, secret และทดสอบ flow ตามลำดับ: login → add to cart → checkout → Stripe event delivery → `purchases` entitlement → library → reader [1] [2]
 
-## 11. Deployment Notes
+## 12. Deployment Notes
 
 โปรเจกต์นี้เป็น Node/Express app ที่มี OAuth, database และ raw Stripe webhook จึง **ไม่สามารถ deploy เป็น static export เพียงอย่างเดียว** หากย้ายไป Vercel, Netlify หรือ Cloudflare ต้องเขียน adapter/port runtime ให้รักษา `/api/trpc/*`, OAuth routes และ raw body ของ `/api/stripe/webhook` ไว้ การใช้ generic Node host (Railway, Render, Fly.io หรือ container runtime) เปลี่ยนแปลงน้อยที่สุด: `pnpm build` แล้ว `pnpm start`
 
@@ -208,9 +223,9 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ตั้งค่าใน secret manager ของ provider เท่านั้น: `DATABASE_URL`, `JWT_SECRET`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `VITE_STRIPE_PUBLISHABLE_KEY` รวมถึง environment variables ของ OAuth/analytics ที่ template ต้องใช้
 
-## 12. Verified Before This Handoff
+## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **20 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback และ IntersectionObserver reveal/cleanup หน้าร้าน desktop/mobile ได้รับการตรวจ layout; admin จะมี skeleton ระหว่าง OAuth/query initial load ซึ่งเป็น expected loading state
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **22 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup และ summary ของ Dashboard สมาชิก หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 
@@ -223,3 +238,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 [4] [Netlify, “Functions overview.”](https://docs.netlify.com/build/functions/overview/)
 
 [5] [Cloudflare, “Workers overview.”](https://developers.cloudflare.com/workers/)
+
+[6] [Corey Haines, “Copywriting Skill.”](https://github.com/coreyhaines31/marketingskills/blob/main/skills/copywriting/SKILL.md)
+
+[7] [Stripe Atlas, “Writing copy for landing pages.”](https://stripe.com/guides/atlas/landing-page-copy)

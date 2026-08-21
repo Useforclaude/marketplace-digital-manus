@@ -15,9 +15,14 @@ const apiWindows = new Map<string, Window>();
 
 function securityHeaders(req: express.Request, res: express.Response, next: express.NextFunction) {
   const isProduction = process.env.NODE_ENV === "production";
+  const frameAncestors = isProduction
+    ? "'none'"
+    : "https://manus.im https://*.manus.im https://manus.com https://*.manus.com";
   res.removeHeader("X-Powered-By");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
+  // X-Frame-Options cannot express an allowlist. Omit it only in development so
+  // the managed Manus Preview frame can render; production stays non-frameable.
+  if (isProduction) res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
@@ -25,7 +30,7 @@ function securityHeaders(req: express.Request, res: express.Response, next: expr
   res.setHeader("Content-Security-Policy", [
     "default-src 'self'",
     "base-uri 'self'",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${frameAncestors}`,
     "form-action 'self' https://checkout.stripe.com",
     "img-src 'self' data: https:",
     "font-src 'self' data: https://fonts.gstatic.com",

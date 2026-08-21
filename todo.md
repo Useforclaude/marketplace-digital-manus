@@ -27,3 +27,18 @@
 - [x] Add an IntersectionObserver integration test for scroll reveal and observer cleanup.
 - [x] Sync the latest project files into the GitHub working copy and push the administrator, Thai storefront, security, test, and handoff updates.
 - [x] Verify the GitHub working copy and remote HEAD include the new commit and updated files.
+- [x] Create a reusable UI/UX design-engineering skill for Codex and Claude Code based on the Brightline implementation patterns.
+- [x] Diagnose and fix the storefront rendering issue that prevents the website from being viewed.
+- [x] Restore the development preview connection after the preview URL refused the browser connection.
+- [x] Provide a verified accessible preview route because the user still cannot open the development URL.
+- [x] Allow the managed Manus Preview frame without weakening security for the published site.
+- [x] Research an appropriate copywriting framework and rewrite Thai storefront messaging for stronger customer impact and conversion.
+- [x] Create a dedicated feature branch and make incremental commits for the member-dashboard and brand-copy improvement work.
+- [x] Build a member dashboard for purchase history, entitlements, and direct access to purchased eBooks and courses.
+- [x] Replace purple CTA styling with a cohesive non-purple button palette across the storefront and member experience.
+- [x] Rewrite storefront headlines, captions, CTA labels, and member-facing copy with a unified Thai conversion voice.
+- [x] Add automated coverage for member dashboard states and verify desktop/mobile layouts.
+- [ ] Update handoff documentation and push the feature branch to GitHub for review and rollback safety.
+- [x] Define the shared lime–emerald CTA style used by member Dashboard actions.
+- [x] Add UI-focused member Dashboard tests for empty, purchased-content, and direct-access states.
+- [x] Add component-level dashboard tests for empty content, purchased cards/history, and read/learn links.

@@ -7,6 +7,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
+import MemberDashboard from "./pages/MemberDashboard";
 import Reader from "./pages/Reader";
 import Admin from "./pages/Admin";
 
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/library"} component={Library} />
+      <Route path={"/dashboard"} component={MemberDashboard} />
       <Route path={"/read/:productId"} component={Reader} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />

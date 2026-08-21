@@ -23,15 +23,15 @@ export function StoreHeader({ onOpenCart }: StoreHeaderProps) {
         </Link>
 
         <nav className="hidden items-center gap-7 text-[11px] font-semibold tracking-[0.17em] text-white/58 md:flex">
-          <a className="transition-colors hover:text-white" href="#editions">
+          <Link className="transition-colors hover:text-white" href="/#editions">
             สินค้า
-          </a>
-          <a className="transition-colors hover:text-white" href="#membership">
+          </Link>
+          <Link className="transition-colors hover:text-white" href="/#membership">
             วิธีใช้งาน
-          </a>
+          </Link>
           {isAuthenticated && (
-            <Link className="transition-colors hover:text-white" href="/library">
-              คลังของฉัน
+            <Link className="transition-colors hover:text-white" href="/dashboard">
+              Dashboard
             </Link>
           )}
           {user?.role === "admin" && <Link className="text-[#d5ff45] transition-colors hover:text-white" href="/admin">หลังบ้าน</Link>}
