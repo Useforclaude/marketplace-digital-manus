@@ -61,3 +61,5 @@
 - [x] Re-run the full verification suite, commit, and push the completed testimonial moderation workflow.
 - [x] Create a layered editorial hero featuring multiple accomplished business gurus with a text-safe Thai copy area.
 - [x] Integrate the selected ensemble hero, verify desktop/mobile composition, then commit and push the feature branch update.
+- [x] Create and integrate an original fictional mentor ensemble with distinct global-business energy and no resemblance to real individuals.
+- [x] Verify the new mentor hero on desktop/mobile, update handoff, then commit and push the feature branch update.
