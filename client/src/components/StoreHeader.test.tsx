@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = {
-  user: null as { role: "user" | "admin" } | null,
+  user: null as { role: "user" | "admin"; name?: string | null; email?: string | null } | null,
   isAuthenticated: false,
   loading: false,
   logout: vi.fn(),
@@ -13,10 +13,11 @@ let libraryItems: unknown[] = [];
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => authState }));
 vi.mock("@/contexts/CartContext", () => ({ useCart: () => ({ itemCount: 0 }) }));
 vi.mock("@/lib/trpc", () => ({
-  trpc: { library: { list: { useQuery: () => ({ data: libraryItems }) } } },
+  trpc: { library: { list: { useQuery: () => ({ data: libraryItems }) } }, notifications: { list: { useQuery: () => ({ data: [] }) }, markRead: { useMutation: () => ({ mutate: vi.fn() }) }, markAllRead: { useMutation: () => ({ mutate: vi.fn() }) } }, useUtils: () => ({ notifications: { list: { invalidate: vi.fn() } } }) },
 }));
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => React.createElement("a", { href, ...props }, children),
+  useLocation: () => ["/", vi.fn()],
 }));
 
 import { StoreHeader } from "./StoreHeader";

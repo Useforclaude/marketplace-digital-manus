@@ -36,6 +36,13 @@
       "when": 1787329997806,
       "tag": "0004_curly_dorian_gray",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787365213686,
+      "tag": "0005_aspiring_giant_man",
+      "breakpoints": true
     }
   ]
 }

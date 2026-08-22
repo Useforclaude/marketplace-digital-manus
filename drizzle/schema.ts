@@ -82,6 +82,28 @@ export const purchases = mysqlTable(
 export type Purchase = typeof purchases.$inferSelect;
 
 /**
+ * A notification belongs to exactly one user. Product publication, purchase
+ * fulfillment and an admin-issued system update create real rows here; the
+ * browser never decides recipients or unread state.
+ */
+export const notifications = mysqlTable(
+  "notifications",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: mysqlEnum("kind", ["product", "purchase", "system"]).notNull(),
+    title: varchar("title", { length: 180 }).notNull(),
+    body: varchar("body", { length: 600 }).notNull(),
+    href: varchar("href", { length: 512 }).notNull(),
+    readAt: timestamp("readAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("notifications_user_read_created_index").on(table.userId, table.readAt, table.createdAt)],
+);
+
+export type Notification = typeof notifications.$inferSelect;
+
+/**
  * Learner feedback is collected only from members who own the referenced
  * product. It remains private until a moderator explicitly approves it after
  * the member has provided publication consent.

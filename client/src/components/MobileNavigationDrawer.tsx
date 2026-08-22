@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { StorefrontExperience } from "@/components/storefrontAccess";
 import { LogOut } from "lucide-react";
 import React from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 type DrawerUser = {
   name?: string | null;
@@ -16,9 +16,10 @@ type DrawerContentProps = {
   onNavigate: () => void;
   onLogin: () => void;
   onLogout: () => void;
+  currentPath: string;
 };
 
-export function MobileNavigationDrawerContent({ experience, user, onNavigate, onLogin, onLogout }: DrawerContentProps) {
+export function MobileNavigationDrawerContent({ experience, user, onNavigate, onLogin, onLogout, currentPath }: DrawerContentProps) {
   const accountName = user?.name?.trim() || user?.email?.trim() || "บัญชี Brightline";
   const avatarInitial = accountName.charAt(0).toUpperCase() || "B";
   return (
@@ -35,18 +36,22 @@ export function MobileNavigationDrawerContent({ experience, user, onNavigate, on
         )}
       </div>
       <nav className="flex flex-col gap-1 px-4 py-5" aria-label="เมนูนำทางมือถือ">
-        {experience.navigation.map((item) => <Link key={item.href} href={item.href} onClick={onNavigate} className={`rounded-xl px-4 py-3.5 text-sm font-bold transition-colors ${item.emphasis ? "bg-[#d5ff45]/10 text-[#d5ff45]" : "text-white/78 hover:bg-white/[.05] hover:text-white"}`}>{item.label}</Link>)}
+        {experience.navigation.map((item) => {
+          const isActive = item.href.startsWith("/#") ? currentPath === "/" && typeof window !== "undefined" && window.location.hash === item.href.slice(1) : currentPath === item.href;
+          return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={isActive ? "page" : undefined} className={`rounded-xl px-4 py-3.5 text-sm font-bold transition-colors ${isActive ? "bg-[#d5ff45] text-black shadow-[0_0_24px_rgba(213,255,69,.15)]" : item.emphasis ? "bg-[#d5ff45]/10 text-[#d5ff45]" : "text-white/78 hover:bg-white/[.05] hover:text-white"}`}>{item.label}</Link>;
+        })}
       </nav>
       {experience.account && <div className="mt-auto border-t border-white/10 p-4"><button type="button" onClick={onLogout} className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white/62 transition-colors hover:bg-white/[.05] hover:text-white"><LogOut size={15} /> ออกจากระบบ</button></div>}
     </div>
   );
 }
 
-type MobileNavigationDrawerProps = Omit<DrawerContentProps, "onNavigate"> & {
+type MobileNavigationDrawerProps = Omit<DrawerContentProps, "onNavigate" | "currentPath"> & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
 export function MobileNavigationDrawer({ open, onOpenChange, ...contentProps }: MobileNavigationDrawerProps) {
-  return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent side="left" className="w-[min(88vw,22rem)] border-white/10 bg-[#0b0c0d] p-0"><SheetTitle className="sr-only">เมนูนำทาง Brightline</SheetTitle><MobileNavigationDrawerContent {...contentProps} onNavigate={() => onOpenChange(false)} /></SheetContent></Sheet>;
+  const [currentPath] = useLocation();
+  return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent side="left" className="w-[min(88vw,22rem)] border-white/10 bg-[#0b0c0d] p-0"><SheetTitle className="sr-only">เมนูนำทาง Brightline</SheetTitle><MobileNavigationDrawerContent {...contentProps} currentPath={currentPath} onNavigate={() => onOpenChange(false)} /></SheetContent></Sheet>;
 }

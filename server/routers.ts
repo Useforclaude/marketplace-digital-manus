@@ -7,6 +7,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   createStoreProduct,
+  createNotificationsForAllUsers,
   createOrUpdateTestimonial,
   getProductBySlug,
   getTestimonialById,
@@ -16,10 +17,13 @@ import {
   listAdminTestimonials,
   listApprovedTestimonials,
   listPublishedProducts,
+  listUserNotifications,
   listUserPurchases,
   listUserTestimonials,
   updateTestimonialStatus,
   updateStoreProduct,
+  markAllNotificationsRead,
+  markNotificationRead,
 } from "./db";
 import { parsePaidContent, toPublicProduct } from "./products";
 import { createCheckoutSession } from "./stripe";
@@ -69,6 +73,12 @@ const testimonialSubmissionInput = z.object({
   displayName: z.string().trim().min(2, "กรุณาระบุชื่อที่ต้องการแสดง").max(80),
   feedback: z.string().trim().min(30, "กรุณาเล่าประสบการณ์อย่างน้อย 30 ตัวอักษร").max(1200),
   consentToPublish: z.literal(true, { error: "ต้องยืนยันการอนุญาตก่อนส่ง" }),
+});
+
+const notificationBroadcastInput = z.object({
+  title: z.string().trim().min(2).max(180),
+  body: z.string().trim().min(2).max(600),
+  href: z.string().trim().regex(/^\/(?!\/)/, "ลิงก์แจ้งเตือนต้องเป็น path ภายในเว็บไซต์").max(512),
 });
 
 function getCoverUpload(dataUrl: string) {
@@ -141,12 +151,19 @@ export const appRouter = router({
       return createOrUpdateTestimonial({ userId: ctx.user.id, productId: input.productId, displayName: input.displayName, feedback: input.feedback });
     }),
   }),
+  notifications: router({
+    list: protectedProcedure.query(({ ctx }) => listUserNotifications(ctx.user.id)),
+    markRead: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => markNotificationRead({ userId: ctx.user.id, id: input.id })),
+    markAllRead: protectedProcedure.mutation(({ ctx }) => markAllNotificationsRead(ctx.user.id)),
+  }),
   admin: router({
     listProducts: adminProcedure.query(() => listAdminProducts()),
     createProduct: adminProcedure.input(productInput).mutation(async ({ ctx, input }) => {
       if (!consumeRateLimit("admin-product", ctx.user.id, 30, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึกข้อมูลบ่อยเกินไป กรุณารอสักครู่" });
       try {
-        return await createStoreProduct({ ...input, createdBy: ctx.user.id });
+        const product = await createStoreProduct({ ...input, createdBy: ctx.user.id });
+        if (product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: "/#editions" });
+        return product;
       } catch (error) {
         console.error("[Admin] Failed to create product", error);
         throw new TRPCError({ code: "CONFLICT", message: "ไม่สามารถสร้างสินค้าได้ กรุณาตรวจสอบ slug ว่าซ้ำหรือไม่" });
@@ -157,7 +174,9 @@ export const appRouter = router({
       if (input.slug !== input.product.slug) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่อนุญาตให้เปลี่ยน slug ของสินค้าที่มีอยู่" });
       const existing = await getProductBySlug(input.slug);
       if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบสินค้าที่ต้องการแก้ไข" });
-      return updateStoreProduct(input.slug, input.product);
+      const product = await updateStoreProduct(input.slug, input.product);
+      if (existing.status !== "published" && product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: "/#editions" });
+      return product;
     }),
     uploadCover: adminProcedure.input(coverUploadInput).mutation(async ({ ctx, input }) => {
       if (!consumeRateLimit("admin-upload", ctx.user.id, 12, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "อัปโหลดบ่อยเกินไป กรุณารอสักครู่" });
@@ -177,6 +196,10 @@ export const appRouter = router({
       if (!testimonial) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบเสียงสะท้อนที่ต้องการจัดการ" });
       if (input.status === "approved" && !testimonial.consentToPublish) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่สามารถอนุมัติข้อความที่ยังไม่ได้รับ consent" });
       return updateTestimonialStatus({ ...input, reviewedBy: ctx.user.id });
+    }),
+    broadcastNotification: adminProcedure.input(notificationBroadcastInput).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-notification", ctx.user.id, 12, 60 * 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "ส่งข้อความบ่อยเกินไป กรุณาลองใหม่ภายหลัง" });
+      return createNotificationsForAllUsers({ kind: "system", ...input });
     }),
   }),
 });

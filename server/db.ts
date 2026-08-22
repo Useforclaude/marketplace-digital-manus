@@ -1,6 +1,6 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStoreProduct, InsertUser, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
+import { InsertStoreProduct, InsertUser, notifications, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
 import { defaultProducts } from "./defaultProducts";
 import { ENV } from './_core/env';
 
@@ -209,7 +209,45 @@ export async function grantPurchaseAccess({
     stripePaymentIntentId,
   });
 
+  const product = await db.select({ title: storeProducts.title }).from(storeProducts).where(eq(storeProducts.slug, productId)).limit(1);
+  await db.insert(notifications).values({
+    userId,
+    kind: "purchase",
+    title: "เปิดหมากใหม่ในคลังของคุณแล้ว",
+    body: product[0] ? `คุณเปิดสิทธิ์ “${product[0].title}” เรียบร้อยแล้ว` : "การสั่งซื้อของคุณได้รับการยืนยันแล้ว",
+    href: "/dashboard",
+  });
+
   return { userId, productId, stripeCheckoutSessionId };
+}
+
+export async function listUserNotifications(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(30);
+}
+
+export async function markNotificationRead({ userId, id }: { userId: number; id: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating notification.");
+  await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.id, id), eq(notifications.userId, userId), isNull(notifications.readAt)));
+  return { id };
+}
+
+export async function markAllNotificationsRead(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating notifications.");
+  await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
+  return { success: true } as const;
+}
+
+export async function createNotificationsForAllUsers({ kind, title, body, href }: { kind: "product" | "system"; title: string; body: string; href: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while creating notifications.");
+  const recipients = await db.select({ id: users.id }).from(users);
+  if (recipients.length === 0) return { recipients: 0 };
+  await db.insert(notifications).values(recipients.map((recipient) => ({ userId: recipient.id, kind, title, body, href })));
+  return { recipients: recipients.length };
 }
 
 export async function createOrUpdateTestimonial({

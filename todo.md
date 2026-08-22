@@ -81,3 +81,8 @@
 - [x] Add a role-aware Header identity treatment with avatar fallback, account name, and the correct account destination.
 - [x] Build an accessible mobile navigation drawer that uses the same role-aware navigation policy as desktop.
 - [x] Add automated coverage for redirect feedback, Header identity, and mobile drawer role states; verify responsive UI, update handoff, then commit and push.
+- [x] Add route-aware active state to mobile navigation drawer using the current location.
+- [x] Add a notification data model, protected tRPC queries/mutations, unread state, and server-side ownership enforcement.
+- [x] Add a Header notification bell with unread badge, notification panel, and read-all interaction.
+- [x] Add real notifications for published digital products and system/account updates without fabricating user messages.
+- [x] Add tests, verify desktop/mobile interactions, update handoff, then commit and push the notification update.

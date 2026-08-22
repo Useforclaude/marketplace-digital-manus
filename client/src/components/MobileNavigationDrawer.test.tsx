@@ -10,13 +10,13 @@ const callbacks = { onNavigate: vi.fn(), onLogin: vi.fn(), onLogout: vi.fn() };
 
 describe("MobileNavigationDrawerContent", () => {
   it("shows visitor login without privileged routes", () => {
-    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: false })} user={null} {...callbacks} />);
+    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: false })} user={null} currentPath="/" {...callbacks} />);
     expect(html).toContain("เริ่มเลือกหมาก");
     expect(html).not.toContain("/admin");
   });
 
   it("shows identity and management navigation only for admins", () => {
-    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: true, role: "admin" })} user={{ name: "Brightline Owner", email: "owner@example.com" }} {...callbacks} />);
+    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: true, role: "admin" })} user={{ name: "Brightline Owner", email: "owner@example.com" }} currentPath="/admin" {...callbacks} />);
     expect(html).toContain("Brightline Owner");
     expect(html).toContain("จัดการร้าน");
     expect(html).toContain("/admin");
@@ -24,9 +24,10 @@ describe("MobileNavigationDrawerContent", () => {
   });
 
   it("shows the library entry for members without exposing admin navigation", () => {
-    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: true, role: "user", ownedItemCount: 1 })} user={{ name: "Member One" }} {...callbacks} />);
+    const html = renderToStaticMarkup(<MobileNavigationDrawerContent experience={getStorefrontExperience({ isAuthenticated: true, role: "user", ownedItemCount: 1 })} user={{ name: "Member One" }} currentPath="/dashboard" {...callbacks} />);
     expect(html).toContain("คลังของฉัน");
     expect(html).toContain("/dashboard");
     expect(html).not.toContain("/admin");
+    expect(html).toContain('aria-current="page"');
   });
 });

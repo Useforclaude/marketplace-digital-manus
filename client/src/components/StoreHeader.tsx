@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { getStorefrontExperience } from "@/components/storefrontAccess";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MobileNavigationDrawer } from "@/components/MobileNavigationDrawer";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Menu, ShoppingBag, ShieldCheck, UserRound } from "lucide-react";
 import React, { useState } from "react";
 import { Link } from "wouter";
@@ -68,6 +69,7 @@ export function StoreHeader({ onOpenCart }: StoreHeaderProps) {
               เริ่มเลือกหมาก
             </button>
           )}
+          <NotificationBell isAuthenticated={isAuthenticated} />
           <button
             type="button"
             onClick={onOpenCart}
