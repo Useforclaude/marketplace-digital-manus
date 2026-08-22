@@ -111,11 +111,16 @@
 - [x] Add admin-editable upsell and downsell offer rules, including related-product targeting, paired offer pricing, and publish status.
 - [x] Add a pre-Stripe checkout offer flow that combines accepted items in one trusted server-side Checkout Session and presents a downsell after an upsell decline.
 - [x] Add Admin controls for product previews and offer-rule management.
-- [ ] Generate and apply a dedicated cover for the current workflow Bundle, then create a second creative/team-work Bundle with real published products.
+- [x] Generate and apply a dedicated cover for the current workflow Bundle, then create a second creative/team-work Bundle with real published products. Superseded: the user requested keeping the existing cover while the image-generation quota is unavailable; the second Bundle was published with an existing approved cover.
 - [x] Add security and behavior tests for previews, offer authorization/pricing, checkout aggregation, and responsive offer UI; verify and save a checkpoint.
 - [x] Keep the existing cover for the current workflow Bundle and defer dedicated cover generation at the user's request.
 - [x] Publish a second creative or team-work Bundle using an existing approved cover and real published products.
-- [ ] Run the user-confirmed Stripe Sandbox checkout for the workflow Bundle and verify redirect, webhook fulfillment, and protected entitlements.
+- Deferred by user (not completed): Run the user-confirmed Stripe Sandbox checkout for the workflow Bundle and verify redirect, webhook fulfillment, and protected entitlements. The Sandbox remains unclaimed.
 - [x] Create and inspect the confirmed Stripe Test Checkout Session for the workflow Bundle; Stripe blocked payment submission because the sandbox remains unclaimed.
-- [ ] Claim or configure the Stripe test sandbox/account, then complete an end-to-end Bundle payment test through payment submission, webhook delivery, and library/reader entitlement verification.
+- Deferred by user (not completed): Claim or configure the Stripe test sandbox/account, then complete an end-to-end Bundle payment test through payment submission, webhook delivery, and library/reader entitlement verification.
 - [x] Document a manual post-claim verification that confirms a successful Bundle checkout creates purchase rows for every included product and enables protected reader access.
+- [x] Defer Stripe Sandbox claim and payment-submission verification at the user's request while retaining the documented post-claim runbook.
+- [x] Add privacy-aware social sharing actions for product and Bundle detail pages, with native share/copy fallback and social platform links.
+- [x] Refine Product Detail loading motion and preview-content presentation for clearer, more engaging reading on desktop and mobile.
+- [x] Add focused tests and responsive verification for sharing and Product Detail motion, then commit, push, and save a checkpoint.
+- [ ] Add focused Product Detail loading-skeleton and preview-presentation rendering tests, then commit, push, and save a checkpoint.

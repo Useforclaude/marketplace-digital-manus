@@ -110,6 +110,14 @@
   .lime-cta:hover { box-shadow: 0 15px 32px rgba(113, 230, 163, .28), inset 0 1px 0 rgba(255,255,255,.42); transform: translateY(-2px); }
   .lime-cta:active { transform: scale(.97); }
   .gradient-panel { background: radial-gradient(circle at 90% 10%, rgba(213, 255, 69, .34), transparent 34%), linear-gradient(128deg, #1b3e29 0%, #0c6654 52%, #13261e 112%); box-shadow: 0 24px 70px rgba(11, 89, 67, .28); }
+  .share-action { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid rgba(255,255,255,.10); border-radius: 9999px; background: rgba(255,255,255,.025); padding: .5rem .75rem; color: rgba(255,255,255,.68); font-size: .625rem; font-weight: 700; letter-spacing: .06em; transition: border-color 160ms cubic-bezier(0.23, 1, 0.32, 1), background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .share-action:hover { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.06); color: #fff; }
+  .detail-shimmer { background: linear-gradient(105deg, rgba(255,255,255,.035) 20%, rgba(213,255,69,.12) 44%, rgba(255,255,255,.04) 65%); background-size: 250% 100%; animation: detail-shimmer 1.35s linear infinite; }
+  .detail-enter { opacity: 0; transform: translate3d(0, 18px, 0); animation: detail-enter 580ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+  .preview-intro { border-left: 1px solid rgba(213,255,69,.36); padding: 1.25rem 1.5rem; background: linear-gradient(95deg, rgba(213,255,69,.08), transparent); }
+  .detail-preview-card { border: 1px solid rgba(255,255,255,.10); border-radius: 1rem; background: linear-gradient(135deg, rgba(255,255,255,.055), rgba(255,255,255,.018)); padding: 1.5rem; opacity: 0; transform: translate3d(0, 12px, 0); animation: detail-enter 520ms cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+  @keyframes detail-shimmer { to { background-position: -250% 0; } }
+  @keyframes detail-enter { to { opacity: 1; transform: translate3d(0, 0, 0); } }
   .reveal { opacity: 0; transform: translate3d(0, 22px, 0); transition: opacity 620ms cubic-bezier(0.23, 1, 0.32, 1), transform 620ms cubic-bezier(0.23, 1, 0.32, 1); }
   .reveal.is-visible { opacity: 1; transform: translate3d(0, 0, 0); }
   .reveal-delay-1 { transition-delay: 80ms; }
@@ -127,4 +135,5 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
   .reveal { opacity: 1; transform: none; animation: none; }
+  .detail-enter, .detail-preview-card { opacity: 1; transform: none; animation: none; }
 }
