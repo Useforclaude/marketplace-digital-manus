@@ -14,6 +14,7 @@ vi.mock("@/lib/trpc", () => ({
     admin: {
       listProducts: { useQuery: () => ({ data: adminState.products, isLoading: false }) },
       listBundles: { useQuery: () => ({ data: adminState.bundles, isLoading: false }) },
+      listCheckoutOffers: { useQuery: () => ({ data: [], isLoading: false }) },
       listOrders: { useQuery: () => ({ data: [], isLoading: false }) },
       listTestimonials: { useQuery: () => ({ data: [], isLoading: false }) },
       createProduct: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
@@ -21,10 +22,12 @@ vi.mock("@/lib/trpc", () => ({
       uploadCover: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       createBundle: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       updateBundle: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      createCheckoutOffer: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      updateCheckoutOffer: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       updateTestimonialStatus: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       broadcastNotification: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
     },
-    useUtils: () => ({ admin: { listProducts: { invalidate: vi.fn() }, listBundles: { invalidate: vi.fn() }, listTestimonials: { invalidate: vi.fn() } }, catalog: { list: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ admin: { listProducts: { invalidate: vi.fn() }, listBundles: { invalidate: vi.fn() }, listCheckoutOffers: { invalidate: vi.fn() }, listTestimonials: { invalidate: vi.fn() } }, catalog: { list: { invalidate: vi.fn() } } }),
   },
 }));
 
@@ -59,7 +62,7 @@ describe("Admin Bundle and Broadcast tabs", () => {
   it("preserves selected product membership and converts an existing Bundle to editable form state", () => {
     expect(toggleBundleProductIds(["focus-atlas"], "decision-playbook")).toEqual(["focus-atlas", "decision-playbook"]);
     expect(toggleBundleProductIds(["focus-atlas", "decision-playbook"], "focus-atlas")).toEqual(["decision-playbook"]);
-    expect(bundleRecordToForm({ ...adminState.bundles[0], status: "published" as const }).productIds).toEqual(["focus-atlas", "decision-playbook"]);
+    expect(bundleRecordToForm({ ...adminState.bundles[0], status: "published" as const, previewContent: null }).productIds).toEqual(["focus-atlas", "decision-playbook"]);
   });
 
   it("normalizes broadcast form input into the mutation-safe internal payload", () => {

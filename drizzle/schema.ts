@@ -49,6 +49,7 @@ export const storeProducts = mysqlTable(
     unitCount: int("unitCount").default(1).notNull(),
     durationLabel: varchar("durationLabel", { length: 80 }).notNull(),
     content: text("content").notNull(),
+    previewContent: text("previewContent"),
     createdBy: int("createdBy").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -123,6 +124,7 @@ export const bundles = mysqlTable("bundles", {
   description: text("description").notNull(),
   category: varchar("category", { length: 120 }).notNull(),
   coverUrl: varchar("coverUrl", { length: 1024 }).notNull(),
+  previewContent: text("previewContent"),
   priceSatang: int("priceSatang").notNull(),
   currency: varchar("currency", { length: 3 }).default("thb").notNull(),
   createdBy: int("createdBy").notNull().references(() => users.id, { onDelete: "restrict" }),
@@ -138,6 +140,32 @@ export const bundleItems = mysqlTable("bundle_items", {
 
 export type Bundle = typeof bundles.$inferSelect;
 export type BundleItem = typeof bundleItems.$inferSelect;
+
+/**
+ * An admin-owned offer shown between the storefront and Stripe Checkout.
+ * Price is the trusted total for one source item plus one offered item, and
+ * offer product IDs can reference either a standard product or a Bundle.
+ */
+export const checkoutOffers = mysqlTable("checkout_offers", {
+  id: int("id").autoincrement().primaryKey(),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  offerType: mysqlEnum("offerType", ["upsell", "downsell"]).notNull(),
+  sourceProductId: varchar("sourceProductId", { length: 96 }).notNull(),
+  offerProductId: varchar("offerProductId", { length: 96 }).notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  body: varchar("body", { length: 600 }).notNull(),
+  ctaLabel: varchar("ctaLabel", { length: 80 }).notNull(),
+  offerTotalPriceSatang: int("offerTotalPriceSatang").notNull(),
+  priority: int("priority").default(0).notNull(),
+  createdBy: int("createdBy").notNull().references(() => users.id, { onDelete: "restrict" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("checkout_offers_source_status_type_priority_index").on(table.sourceProductId, table.status, table.offerType, table.priority),
+  index("checkout_offers_offer_product_index").on(table.offerProductId),
+]);
+
+export type CheckoutOffer = typeof checkoutOffers.$inferSelect;
 
 /**
  * Learner feedback is collected only from members who own the referenced

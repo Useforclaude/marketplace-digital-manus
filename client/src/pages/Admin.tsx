@@ -9,8 +9,19 @@ import { toast } from "sonner";
 type ProductKind = "ebook" | "course";
 type ProductStatus = "draft" | "published" | "archived";
 type TestimonialStatus = "pending" | "approved" | "hidden" | "rejected";
-type AdminTab = "products" | "bundles" | "orders" | "testimonials" | "notifications";
+type AdminTab = "products" | "bundles" | "offers" | "orders" | "testimonials" | "notifications";
 type BroadcastForm = { title: string; body: string; href: string };
+type OfferForm = {
+  status: ProductStatus;
+  offerType: "upsell" | "downsell";
+  sourceProductId: string;
+  offerProductId: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  offerTotalBaht: string;
+  priority: string;
+};
 
 type BundleForm = {
   slug: string;
@@ -22,6 +33,7 @@ type BundleForm = {
   coverUrl: string;
   priceBaht: string;
   productIds: string[];
+  previewContent: string;
 };
 
 type ProductForm = {
@@ -39,26 +51,30 @@ type ProductForm = {
   unitCount: string;
   durationLabel: string;
   content: string;
+  previewContent: string;
 };
 
 const ebookTemplate = JSON.stringify({ kind: "ebook", intro: "เกริ่นนำเนื้อหาของหนังสือ", chapters: [{ kicker: "บทที่ 01", title: "ชื่อบทแรก", body: ["ย่อหน้าแรกของเนื้อหา", "ย่อหน้าที่สองของเนื้อหา"] }] }, null, 2);
 const courseTemplate = JSON.stringify({ kind: "course", intro: "เกริ่นนำคอร์สของคุณ", modules: [{ title: "บทเรียนที่ 1", duration: "30 นาที", summary: "สิ่งที่ผู้เรียนจะได้จากบทเรียนนี้" }] }, null, 2);
+const previewTemplate = JSON.stringify({ intro: "เกริ่นนำที่ผู้เยี่ยมชมอ่านได้ก่อนตัดสินใจ", sections: [{ kicker: "ตัวอย่าง 01", title: "ชื่อช่วงตัวอย่าง", body: ["ย่อหน้าแรกของตัวอย่าง", "ย่อหน้าที่สองของตัวอย่าง"] }] }, null, 2);
 
 const emptyForm = (productType: ProductKind = "ebook"): ProductForm => ({
-  slug: "", productType, status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", coverKey: "", accent: "lime", priceBaht: "", unitCount: "1", durationLabel: "", content: productType === "ebook" ? ebookTemplate : courseTemplate,
+  slug: "", productType, status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", coverKey: "", accent: "lime", priceBaht: "", unitCount: "1", durationLabel: "", content: productType === "ebook" ? ebookTemplate : courseTemplate, previewContent: "",
 });
 
 const emptyBundleForm = (): BundleForm => ({
-  slug: "", status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", priceBaht: "", productIds: [],
+  slug: "", status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", priceBaht: "", productIds: [], previewContent: "",
 });
+
+const emptyOfferForm = (): OfferForm => ({ status: "draft", offerType: "upsell", sourceProductId: "", offerProductId: "", title: "", body: "", ctaLabel: "เพิ่มเข้ารายการ", offerTotalBaht: "", priority: "0" });
 
 function getInitialAdminTab(): AdminTab {
   if (typeof window === "undefined") return "products";
   const candidate = new URLSearchParams(window.location.search).get("tab");
-  return candidate === "bundles" || candidate === "orders" || candidate === "testimonials" || candidate === "notifications" ? candidate : "products";
+  return candidate === "bundles" || candidate === "offers" || candidate === "orders" || candidate === "testimonials" || candidate === "notifications" ? candidate : "products";
 }
 
-function recordToForm(product: { slug: string; productType: ProductKind; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; coverKey: string | null; accent: ProductForm["accent"]; priceSatang: number; unitCount: number; durationLabel: string; content: string }): ProductForm {
+function recordToForm(product: { slug: string; productType: ProductKind; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; coverKey: string | null; accent: ProductForm["accent"]; priceSatang: number; unitCount: number; durationLabel: string; content: string; previewContent: string | null }): ProductForm {
   return {
     slug: product.slug,
     productType: product.productType,
@@ -74,10 +90,11 @@ function recordToForm(product: { slug: string; productType: ProductKind; status:
     unitCount: String(product.unitCount),
     durationLabel: product.durationLabel,
     content: product.content,
+    previewContent: product.previewContent ?? "",
   };
 }
 
-export function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; priceSatang: number; includedProductIds: string[] }): BundleForm {
+export function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; priceSatang: number; includedProductIds: string[]; previewContent: string | null }): BundleForm {
   return {
     slug: bundle.slug,
     status: bundle.status,
@@ -88,6 +105,7 @@ export function bundleRecordToForm(bundle: { slug: string; status: ProductStatus
     coverUrl: bundle.coverUrl,
     priceBaht: String(bundle.priceSatang / 100),
     productIds: bundle.includedProductIds,
+    previewContent: bundle.previewContent ?? "",
   };
 }
 
@@ -115,6 +133,7 @@ export default function Admin() {
   const utils = trpc.useUtils();
   const products = trpc.admin.listProducts.useQuery(undefined, { enabled: user?.role === "admin" });
   const bundles = trpc.admin.listBundles.useQuery(undefined, { enabled: user?.role === "admin" });
+  const checkoutOffers = trpc.admin.listCheckoutOffers.useQuery(undefined, { enabled: user?.role === "admin" });
   const orders = trpc.admin.listOrders.useQuery(undefined, { enabled: user?.role === "admin" });
   const testimonials = trpc.admin.listTestimonials.useQuery(undefined, { enabled: user?.role === "admin" });
   const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
@@ -122,10 +141,13 @@ export default function Admin() {
   const [form, setForm] = useState<ProductForm>(() => emptyForm());
   const [editingBundleSlug, setEditingBundleSlug] = useState<string | null>(null);
   const [bundleForm, setBundleForm] = useState<BundleForm>(() => emptyBundleForm());
+  const [editingOfferId, setEditingOfferId] = useState<number | null>(null);
+  const [offerForm, setOfferForm] = useState<OfferForm>(() => emptyOfferForm());
   const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>({ title: "", body: "", href: "/" });
 
   const productMap = useMemo(() => new Map((products.data ?? []).map((product) => [product.slug, product])), [products.data]);
   const bundleMap = useMemo(() => new Map((bundles.data ?? []).map((bundle) => [bundle.slug, bundle])), [bundles.data]);
+  const offerTargets = useMemo(() => [...(products.data ?? []), ...(bundles.data ?? [])], [bundles.data, products.data]);
   const saveProduct = trpc.admin.createProduct.useMutation({
     onSuccess: async () => { await utils.admin.listProducts.invalidate(); setEditingSlug(null); setForm(emptyForm()); toast.success("บันทึกสินค้าแล้ว"); },
     onError: (error) => toast.error("บันทึกสินค้าไม่สำเร็จ", { description: error.message }),
@@ -149,6 +171,14 @@ export default function Admin() {
   const updateBundle = trpc.admin.updateBundle.useMutation({
     onSuccess: async () => { await utils.admin.listBundles.invalidate(); await utils.catalog.list.invalidate(); toast.success("อัปเดต Bundle แล้ว"); },
     onError: (error) => toast.error("อัปเดต Bundle ไม่สำเร็จ", { description: error.message }),
+  });
+  const saveCheckoutOffer = trpc.admin.createCheckoutOffer.useMutation({
+    onSuccess: async () => { await utils.admin.listCheckoutOffers.invalidate(); setEditingOfferId(null); setOfferForm(emptyOfferForm()); toast.success("บันทึก Offer แล้ว"); },
+    onError: (error) => toast.error("บันทึก Offer ไม่สำเร็จ", { description: error.message }),
+  });
+  const updateCheckoutOffer = trpc.admin.updateCheckoutOffer.useMutation({
+    onSuccess: async () => { await utils.admin.listCheckoutOffers.invalidate(); toast.success("อัปเดต Offer แล้ว"); },
+    onError: (error) => toast.error("อัปเดต Offer ไม่สำเร็จ", { description: error.message }),
   });
   const broadcastNotification = trpc.admin.broadcastNotification.useMutation({
     onSuccess: () => { setBroadcastForm({ title: "", body: "", href: "/" }); toast.success("ส่งประกาศไปยังผู้ใช้ที่เลือกเปิดรับแล้ว"); },
@@ -193,7 +223,7 @@ export default function Admin() {
     const payload = {
       slug: form.slug.trim(), productType: form.productType, status: form.status, title: form.title.trim(), subtitle: form.subtitle.trim() || null,
       description: form.description.trim(), category: form.category.trim(), coverUrl: form.coverUrl.trim(), coverKey: form.coverKey.trim() || null,
-      accent: form.accent, priceSatang: Math.round(Number(form.priceBaht) * 100), currency: "thb" as const, unitCount: Number(form.unitCount), durationLabel: form.durationLabel.trim(), content: form.content.trim(),
+      accent: form.accent, priceSatang: Math.round(Number(form.priceBaht) * 100), currency: "thb" as const, unitCount: Number(form.unitCount), durationLabel: form.durationLabel.trim(), content: form.content.trim(), previewContent: form.previewContent.trim() || null,
     };
     if (editingSlug) updateProduct.mutate({ slug: editingSlug, product: payload });
     else saveProduct.mutate(payload);
@@ -209,7 +239,7 @@ export default function Admin() {
     const payload = {
       slug: bundleForm.slug.trim(), status: bundleForm.status, title: bundleForm.title.trim(), subtitle: bundleForm.subtitle.trim() || null,
       description: bundleForm.description.trim(), category: bundleForm.category.trim(), coverUrl: bundleForm.coverUrl.trim(),
-      priceSatang: Math.round(Number(bundleForm.priceBaht) * 100), currency: "thb" as const, productIds: bundleForm.productIds,
+      priceSatang: Math.round(Number(bundleForm.priceBaht) * 100), currency: "thb" as const, productIds: bundleForm.productIds, previewContent: bundleForm.previewContent.trim() || null,
     };
     if (editingBundleSlug) updateBundle.mutate({ slug: editingBundleSlug, bundle: payload });
     else saveBundle.mutate(payload);
@@ -221,12 +251,36 @@ export default function Admin() {
     setBundleForm(bundleRecordToForm(bundle));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const patchOffer = (value: Partial<OfferForm>) => setOfferForm((current) => ({ ...current, ...value }));
+  const submitOffer = () => {
+    const payload = {
+      status: offerForm.status,
+      offerType: offerForm.offerType,
+      sourceProductId: offerForm.sourceProductId,
+      offerProductId: offerForm.offerProductId,
+      title: offerForm.title.trim(),
+      body: offerForm.body.trim(),
+      ctaLabel: offerForm.ctaLabel.trim(),
+      offerTotalPriceSatang: Math.round(Number(offerForm.offerTotalBaht) * 100),
+      priority: Number(offerForm.priority),
+    };
+    if (editingOfferId) updateCheckoutOffer.mutate({ id: editingOfferId, offer: payload });
+    else saveCheckoutOffer.mutate(payload);
+  };
+  const openOfferEdit = (id: number) => {
+    const offer = checkoutOffers.data?.find((candidate) => candidate.id === id);
+    if (!offer) return;
+    setEditingOfferId(id);
+    setOfferForm({ status: offer.status, offerType: offer.offerType, sourceProductId: offer.sourceProductId, offerProductId: offer.offerProductId, title: offer.title, body: offer.body, ctaLabel: offer.ctaLabel, offerTotalBaht: String(offer.offerTotalPriceSatang / 100), priority: String(offer.priority) });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const toggleBundleProduct = (productId: string) => {
     setBundleForm((current) => ({ ...current, productIds: toggleBundleProductIds(current.productIds, productId) }));
   };
   const submitBroadcast = () => broadcastNotification.mutate(normalizeBroadcastPayload(broadcastForm));
   const isSaving = saveProduct.isPending || updateProduct.isPending;
   const isSavingBundle = saveBundle.isPending || updateBundle.isPending;
+  const isSavingOffer = saveCheckoutOffer.isPending || updateCheckoutOffer.isPending;
   const tabClass = (tab: typeof activeTab) => `rounded-full px-4 py-2.5 text-[10px] font-bold tracking-[0.1em] ${activeTab === tab ? "gradient-cta text-black" : "border border-white/13 text-white/70"}`;
 
   return (
@@ -242,6 +296,7 @@ export default function Admin() {
             <nav className="flex flex-wrap gap-2" aria-label="เมนูจัดการร้าน">
               <button type="button" onClick={() => setActiveTab("products")} className={tabClass("products")}>สินค้า</button>
               <button type="button" onClick={() => setActiveTab("bundles")} className={`${tabClass("bundles")} inline-flex items-center gap-2`}><Boxes size={13} /> Bundle</button>
+              <button type="button" onClick={() => setActiveTab("offers")} className={tabClass("offers")}>Upsell / Downsell</button>
               <button type="button" onClick={() => setActiveTab("orders")} className={tabClass("orders")}>คำสั่งซื้อ</button>
               <button type="button" onClick={() => setActiveTab("testimonials")} className={`${tabClass("testimonials")} inline-flex items-center gap-2`}><MessageSquareQuote size={13} /> เสียงผู้เรียน</button>
               <button type="button" onClick={() => setActiveTab("notifications")} className={`${tabClass("notifications")} inline-flex items-center gap-2`}><BellRing size={13} /> ประกาศ</button>
@@ -281,6 +336,7 @@ export default function Admin() {
                   <label className="admin-field">โทนสี<select value={form.accent} onChange={(event) => patch({ accent: event.target.value as ProductForm["accent"] })}><option value="lime">Lime</option><option value="violet">Violet</option><option value="rose">Rose</option><option value="cyan">Cyan</option></select></label>
                   <div className="rounded-xl border border-dashed border-white/16 p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-xs font-bold">รูปหน้าปก</div><p className="mt-1 text-[10px] leading-4 text-white/45">PNG, JPG หรือ WebP ขนาดไม่เกิน 3 MB</p></div><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[9px] font-bold tracking-[0.08em] transition hover:border-white/35"><Upload size={13} /> {uploadCover.isPending ? "กำลังอัปโหลด" : "อัปโหลด"}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleCoverFile} /></label></div>{form.coverUrl && <div className="mt-3 flex gap-3"><img src={form.coverUrl} alt="ตัวอย่างรูปปก" className="h-16 w-12 rounded-md object-cover" /><input className="min-w-0 flex-1 rounded-lg border border-white/12 bg-black/20 px-3 text-[10px] text-white/62" value={form.coverUrl} onChange={(event) => patch({ coverUrl: event.target.value })} /></div>}</div>
                   <label className="admin-field">เนื้อหาแบบ JSON<textarea className="font-mono text-[10px] leading-5" rows={10} value={form.content} onChange={(event) => patch({ content: event.target.value })} /></label>
+                  <label className="admin-field">ตัวอย่างสาธารณะ (JSON, สูงสุด 2 ช่วง)<textarea className="font-mono text-[10px] leading-5" rows={7} value={form.previewContent} onChange={(event) => patch({ previewContent: event.target.value })} placeholder={previewTemplate} /><span className="mt-2 block text-[10px] font-normal leading-4 text-white/42">ใช้ <code>intro</code> และ <code>sections</code> เพื่อให้ผู้เยี่ยมชมอ่านตัวอย่างได้โดยไม่เห็นเนื้อหาฉบับเต็ม</span></label>
                   <button type="button" disabled={isSaving || uploadCover.isPending} onClick={submit} className="gradient-cta flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[0.1em] text-black disabled:opacity-60"><Save size={14} /> {isSaving ? "กำลังบันทึก…" : editingSlug ? "บันทึกการแก้ไข" : "สร้างสินค้า"}</button>
                 </div>
               </aside>
@@ -309,10 +365,21 @@ export default function Admin() {
                   <label className="admin-field">รายละเอียด<textarea rows={3} value={bundleForm.description} onChange={(event) => patchBundle({ description: event.target.value })} placeholder="อธิบายเส้นทางและความคุ้มค่าของชุด" /></label>
                   <label className="admin-field">หมวดหมู่<input value={bundleForm.category} onChange={(event) => patchBundle({ category: event.target.value })} placeholder="เช่น การทำงานเชิงกลยุทธ์" /></label>
                   <div className="rounded-xl border border-dashed border-white/16 p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-xs font-bold">รูปปก Bundle</div><p className="mt-1 text-[10px] leading-4 text-white/45">PNG, JPG หรือ WebP ขนาดไม่เกิน 3 MB</p></div><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[9px] font-bold tracking-[0.08em] transition hover:border-white/35"><Upload size={13} /> {uploadBundleCover.isPending ? "กำลังอัปโหลด" : "อัปโหลด"}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleBundleCoverFile} /></label></div>{bundleForm.coverUrl && <div className="mt-3 flex gap-3"><img src={bundleForm.coverUrl} alt="ตัวอย่างรูปปก Bundle" className="h-16 w-12 rounded-md object-cover" /><input className="min-w-0 flex-1 rounded-lg border border-white/12 bg-black/20 px-3 text-[10px] text-white/62" value={bundleForm.coverUrl} onChange={(event) => patchBundle({ coverUrl: event.target.value })} /></div>}</div>
+                  <label className="admin-field">ตัวอย่างสาธารณะ (JSON, สูงสุด 2 ช่วง)<textarea className="font-mono text-[10px] leading-5" rows={7} value={bundleForm.previewContent} onChange={(event) => patchBundle({ previewContent: event.target.value })} placeholder={previewTemplate} /><span className="mt-2 block text-[10px] font-normal leading-4 text-white/42">แนะนำให้เขียนแนวคิดและผลลัพธ์ของแพ็กเกจ ไม่ใช่เนื้อหาเต็มของสินค้าภายใน</span></label>
                   <fieldset className="rounded-xl border border-white/10 p-4"><legend className="px-1 text-xs font-bold">สินค้าใน Bundle <span className="ml-1 text-[#d5ff45]">{bundleForm.productIds.length} รายการ</span></legend><p className="mb-3 text-[10px] leading-4 text-white/45">เลือกอย่างน้อย 2 รายการ และหากเผยแพร่ Bundle สินค้าทุกชิ้นต้องเผยแพร่แล้ว</p><div className="max-h-52 space-y-2 overflow-y-auto pr-1">{products.data?.map((product) => <label key={product.slug} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/8 bg-black/10 px-3 py-2.5 transition hover:border-white/22"><input type="checkbox" checked={bundleForm.productIds.includes(product.slug)} onChange={() => toggleBundleProduct(product.slug)} className="accent-[#d5ff45]" /><img src={product.coverUrl} alt="" className="h-8 w-6 rounded object-cover" /><span className="min-w-0 flex-1 truncate text-xs text-white/78">{product.title}</span><span className="text-[9px] text-white/40">{product.status === "published" ? "เผยแพร่" : "ยังไม่เผยแพร่"}</span></label>)}</div></fieldset>
                   <button type="button" disabled={isSavingBundle || uploadBundleCover.isPending} onClick={submitBundle} className="gradient-cta flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[0.1em] text-black disabled:opacity-60"><Save size={14} /> {isSavingBundle ? "กำลังบันทึก…" : editingBundleSlug ? "บันทึก Bundle" : "สร้าง Bundle"}</button>
                 </div>
               </aside>
+            </div>
+          )}
+
+          {activeTab === "offers" && (
+            <div className="grid gap-8 py-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+              <section className="order-2 xl:order-1">
+                <div className="mb-4 flex items-end justify-between gap-4"><div><div className="eyebrow text-[#d5ff45]">Checkout conversion controls</div><h2 className="font-display mt-2 text-3xl tracking-[-0.045em]">Upsell และ Downsell</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-white/48">เสนอสินค้าที่เกี่ยวข้องก่อน Stripe Checkout โดยราคาแพ็กและสิทธิ์ทุกชิ้นจะถูกตรวจจากฐานข้อมูลบน server เท่านั้น</p></div><button type="button" onClick={() => { setEditingOfferId(null); setOfferForm(emptyOfferForm()); }} className="shrink-0 rounded-full border border-white/16 px-4 py-2 text-[10px] font-bold tracking-[0.1em] transition hover:border-white/40">สร้าง Offer</button></div>
+                <div className="space-y-3">{checkoutOffers.isLoading ? <div className="grid h-48 place-items-center rounded-2xl border border-white/10 text-sm text-white/45"><Loader2 className="animate-spin" size={18} /></div> : checkoutOffers.data?.length ? checkoutOffers.data.map((offer) => <article key={offer.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-5"><div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start"><div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${offer.offerType === "upsell" ? "bg-[#d5ff45]/14 text-[#d5ff45]" : "bg-amber-300/14 text-amber-200"}`}>{offer.offerType === "upsell" ? "UPSELL" : "DOWNSELL"}</span><span className="rounded-full bg-white/8 px-2.5 py-1 text-[9px] font-bold text-white/60">{offer.status === "published" ? "เผยแพร่" : offer.status === "draft" ? "ฉบับร่าง" : "เก็บถาวร"}</span><span className="font-mono text-[9px] text-white/38">Priority {offer.priority}</span></div><h3 className="font-display mt-3 text-2xl tracking-[-0.04em]">{offer.title}</h3><p className="mt-2 text-xs leading-5 text-white/56">{offer.body}</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/45"><span>ต้นทาง: {offerTargets.find((target) => target.slug === offer.sourceProductId)?.title ?? offer.sourceProductId}</span><span>เสนอ: {offerTargets.find((target) => target.slug === offer.offerProductId)?.title ?? offer.offerProductId}</span><span className="font-bold text-[#d5ff45]">รวม {formatCurrency(offer.offerTotalPriceSatang)}</span></div></div><button type="button" onClick={() => openOfferEdit(offer.id)} className="rounded-lg border border-white/12 px-3 py-2 text-[9px] font-bold tracking-[0.08em] text-white/75 transition hover:border-white/35">แก้ไข</button></div></article>) : <div className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-white/14 p-7 text-center text-sm text-white/48">ยังไม่มี Offer — เริ่มจากเสนอคอร์สที่เกี่ยวข้องเป็น Upsell หรือเสนอ Bundle ราคาพิเศษเป็น Downsell</div>}</div>
+              </section>
+              <aside className="order-1 rounded-2xl border border-white/10 bg-white/[0.025] p-5 xl:order-2"><div className="flex items-start justify-between gap-3"><div><div className="eyebrow text-[#d5ff45]">{editingOfferId ? "แก้ไข Offer" : "สร้าง Offer"}</div><h2 className="font-display mt-2 text-3xl tracking-[-0.045em]">{offerForm.offerType === "upsell" ? "เสนอเพิ่ม" : "ราคาพิเศษ"}</h2></div>{editingOfferId && <button type="button" onClick={() => { setEditingOfferId(null); setOfferForm(emptyOfferForm()); }} className="grid h-8 w-8 place-items-center rounded-full border border-white/12 text-white/60"><X size={15} /></button>}</div><div className="mt-6 space-y-4"><div className="grid grid-cols-2 gap-3"><label className="admin-field">ประเภท<select value={offerForm.offerType} onChange={(event) => patchOffer({ offerType: event.target.value as OfferForm["offerType"] })}><option value="upsell">Upsell</option><option value="downsell">Downsell</option></select></label><label className="admin-field">สถานะ<select value={offerForm.status} onChange={(event) => patchOffer({ status: event.target.value as ProductStatus })}><option value="draft">ฉบับร่าง</option><option value="published">เผยแพร่</option><option value="archived">เก็บถาวร</option></select></label></div><label className="admin-field">สินค้าต้นทาง<select value={offerForm.sourceProductId} onChange={(event) => patchOffer({ sourceProductId: event.target.value })}><option value="">เลือกสินค้าต้นทาง</option>{offerTargets.map((target) => <option key={target.slug} value={target.slug}>{target.productType === "bundle" ? "Bundle · " : ""}{target.title}</option>)}</select></label><label className="admin-field">สินค้า/Bundle ที่เสนอ<select value={offerForm.offerProductId} onChange={(event) => patchOffer({ offerProductId: event.target.value })}><option value="">เลือกสินค้าที่เสนอ</option>{offerTargets.filter((target) => target.slug !== offerForm.sourceProductId).map((target) => <option key={target.slug} value={target.slug}>{target.productType === "bundle" ? "Bundle · " : ""}{target.title}</option>)}</select></label><label className="admin-field">หัวข้อ Offer<input value={offerForm.title} onChange={(event) => patchOffer({ title: event.target.value })} placeholder="เช่น เพิ่มคอร์สนี้ในราคาพิเศษ" /></label><label className="admin-field">คำอธิบาย<textarea rows={3} value={offerForm.body} onChange={(event) => patchOffer({ body: event.target.value })} placeholder="อธิบายเหตุผลและความคุ้มค่า" /></label><div className="grid grid-cols-2 gap-3"><label className="admin-field">ข้อความปุ่ม<input value={offerForm.ctaLabel} onChange={(event) => patchOffer({ ctaLabel: event.target.value })} /></label><label className="admin-field">ราคารวม Offer (บาท)<input type="number" min="5" value={offerForm.offerTotalBaht} onChange={(event) => patchOffer({ offerTotalBaht: event.target.value })} /></label></div><label className="admin-field">ลำดับความสำคัญ<input type="number" value={offerForm.priority} onChange={(event) => patchOffer({ priority: event.target.value })} /><span className="mt-2 block text-[10px] font-normal text-white/42">ตัวเลขสูงจะแสดงก่อน เมื่อสินค้าต้นทางเดียวกันมีหลาย Offer</span></label><button type="button" disabled={isSavingOffer} onClick={submitOffer} className="gradient-cta flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[0.1em] text-black disabled:opacity-60"><Save size={14} /> {isSavingOffer ? "กำลังบันทึก…" : editingOfferId ? "บันทึก Offer" : "สร้าง Offer"}</button></div></aside>
             </div>
           )}
 

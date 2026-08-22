@@ -32,6 +32,22 @@ describe("checkout item validation", () => {
     expect(lineItem.entitlementProductIds).toEqual(["atlas-of-attention", "decision-playbook"]);
   });
 
+  it("replaces a source item with one trusted offer price and aggregates both entitlements", async () => {
+    const offeredProduct = { slug: "creative-compass", title: "เข็มทิศความคิดสร้างสรรค์", subtitle: null, description: "รายละเอียด", currency: "thb", priceSatang: 59000 };
+    mockProducts.mockResolvedValueOnce([trustedProduct] as never).mockResolvedValueOnce([offeredProduct] as never);
+    const [lineItem] = await validateCheckoutItems([{ productId: "atlas-of-attention", quantity: 1 }], {
+      id: 42,
+      sourceProductId: "atlas-of-attention",
+      offerProductId: "creative-compass",
+      title: "แพ็กโฟกัสและความคิดสร้างสรรค์",
+      body: "ราคาพิเศษจาก server",
+      offerTotalPriceSatang: 119000,
+    } as never);
+    expect(lineItem.productId).toBe("offer-42");
+    expect(lineItem.price_data.unit_amount).toBe(119000);
+    expect(lineItem.entitlementProductIds).toEqual(["atlas-of-attention", "creative-compass"]);
+  });
+
   it("rejects unavailable products and empty carts", async () => {
     mockProducts.mockResolvedValue([]);
     await expect(validateCheckoutItems([{ productId: "not-a-real-edition", quantity: 1 }])).rejects.toThrow("ไม่พร้อมจำหน่าย");

@@ -15,7 +15,9 @@
 | Social proof | แสดง feedback เฉพาะผู้เรียนที่ซื้อจริง, ยินยอม และผ่านการอนุมัติแล้ว; หากยังไม่มีข้อมูลจะใช้ empty state ที่โปร่งใส โดยไม่มีข้อมูลตัวอย่างหรือคำยืนยันที่สร้างขึ้น | `client/src/pages/homeContent.ts`, `client/src/pages/Home.tsx`, `server/routers.ts` |
 | Testimonial moderation | ผู้เรียนส่ง feedback จากสินค้าที่ตนซื้อพร้อม consent; admin เปลี่ยนสถานะเป็น `approved`, `hidden`, `rejected` หรือ `pending` ได้ | `testimonials`, `client/src/pages/MemberDashboard.tsx`, `client/src/pages/Admin.tsx` |
 | สินค้าดิจิทัล | รองรับ `ebook`, `course` และ `bundle`; Bundle เป็นรายการขายเดียวที่ปลดล็อกทุกสินค้าภายใน | `store_products`, `bundles`, `bundle_items`, `drizzle/schema.ts` |
-| หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้าและ Bundle, ตั้งราคา/หน้าปก/สถานะ, เลือกสินค้าในชุด, ดู entitlement, กลั่นกรอง testimonial และส่งประกาศระบบ | `client/src/pages/Admin.tsx`, `server/routers.ts` |
+| Product detail และ preview | ผู้เข้าชมกดภาพหรือ card เพื่อเปิด `/product/:slug`, อ่าน excerpt สูงสุด 2 ช่วงที่ผู้ดูแลกำหนด และดูสินค้าภายใน Bundle ได้โดยไม่เห็น manuscript/course JSON ฉบับเต็ม | `client/src/pages/ProductDetail.tsx`, `server/products.ts`, `catalog.detail` |
+| Upsell / downsell | ก่อนเปิด Stripe Checkout ระบบตรวจ offer ที่ผู้ดูแลเผยแพร่, เสนอสินค้าที่เกี่ยวข้อง, แสดง downsell เมื่อปฏิเสธ upsell, และสร้าง Session จาก offer total ที่ตรวจใน server | `checkout_offers`, `client/src/components/CheckoutOfferDialog.tsx`, `commerce.offers`, `server/stripe.ts` |
+| หลังบ้านผู้ดูแล | สร้าง/แก้ไขสินค้าและ Bundle, ตั้งราคา/หน้าปก/สถานะ, เขียน public preview JSON, เลือกสินค้าในชุด, ตั้ง upsell/downsell, ดู entitlement, กลั่นกรอง testimonial และส่งประกาศระบบ | `client/src/pages/Admin.tsx`, `server/routers.ts` |
 | รูปหน้าปก | อัปโหลดผ่าน server เฉพาะ admin, จำกัด MIME และขนาดไฟล์ | `admin.uploadCover`, `server/storage.ts` |
 | สมาชิก | Manus OAuth และ signed session cookie | `server/_core/`, `client/src/_core/hooks/useAuth.ts` |
 | Dashboard สมาชิก | สรุป entitlement, เข้า eBook/คอร์สโดยตรง และดูประวัติคำสั่งซื้อของบัญชีตนเอง | `client/src/pages/MemberDashboard.tsx`, `/dashboard` |
@@ -61,7 +63,7 @@ flowchart LR
   U --> S3[Private storage workflow]
 ```
 
-เบราว์เซอร์ส่งเพียง `productId` และ `quantity` เข้าสู่ checkout API เท่านั้น `server/stripe.ts` โหลดสินค้า **published** จาก `store_products` และสร้าง `price_data` จาก `priceSatang` ที่เชื่อถือได้ จึงไม่สามารถแก้ราคาใน DevTools หรือผ่าน request ที่ถูกดัดแปลงเพื่อสร้าง Checkout Session ในราคาปลอมได้
+เบราว์เซอร์ส่งเพียง `productId`, `quantity` และ optional `offerId` เข้าสู่ checkout API เท่านั้น `server/stripe.ts` โหลดสินค้า **published** และ offer ที่เผยแพร่จากฐานข้อมูล สร้าง `price_data` จาก `priceSatang` หรือ `offerTotalPriceSatang` ที่เชื่อถือได้ และยืนยันว่าของต้นทางอยู่ในรายการก่อนรวม entitlement ของทั้งคู่ จึงไม่สามารถแก้ราคาใน DevTools หรือผ่าน request ที่ถูกดัดแปลงเพื่อสร้าง Checkout Session ในราคาปลอมได้
 
 Stripe ยืนยันการชำระเงินผ่าน webhook แทนการเชื่อ redirect หน้า success เพราะ redirect เป็นเพียงประสบการณ์ผู้ใช้ ไม่ใช่หลักฐานการจ่ายเงิน ระบบตรวจลายเซ็นและ raw request body ก่อนสร้าง entitlement ตามแนวทาง Stripe [1] [2]
 
@@ -70,6 +72,8 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
 | `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | Hero CTA ต้องใช้ `storefrontAccess.ts` เพื่อแสดง “เลือกหมากตัวแรกของคุณ” แก่ visitor/user, ทางเข้าคลังให้ member และทางเข้าหลังบ้านให้ admin; product cards รวม Bundle และมี `#product-<slug>` anchor สำหรับ notification deep link; social proof ต้อง query ได้เพียง approved+consented feedback |
+| `client/src/pages/ProductDetail.tsx` | รายละเอียดสินค้า/Bundle และ excerpt | เป็น public page; แสดงได้เฉพาะ metadata, preview ที่ผ่าน `toPublicPreview()` และรายชื่อสินค้าภายใน Bundle; paid `content` ต้องอยู่หลัง reader entitlement เท่านั้น |
+| `client/src/components/CheckoutOfferDialog.tsx` | dialog ก่อน Stripe | ใช้ offer ของสินค้าต้นทางหนึ่งรายการ; การกดรับส่งเพียง `offerId` กลับ server, ห้ามคำนวณราคาหรือเติม product ID ของ offer ใน client |
 | `client/src/components/StoreHeader.tsx` | navigation และ account identity ตาม role | ห้าม render `/admin` ให้ visitor/user/member; desktop แสดง avatar fallback จากอักษรแรกของชื่อ/อีเมล, ชื่อบัญชี และ destination ที่ถูกต้อง; mobile เปิด drawer แทนการซ่อนเมนูทั้งหมด |
 | `client/src/components/MobileNavigationDrawer.tsx` | mobile navigation ตาม role | ใช้ `storefrontAccess.ts` โดยตรง เพื่อป้องกัน desktop/mobile แสดงเมนูไม่ตรงกัน; visitor เห็น login CTA, member เห็นคลัง และ admin เห็นจัดการร้าน |
 | `client/src/components/NotificationBell.tsx` | notification feed ใน Header | query/mutation ผ่าน `notifications.*` เท่านั้น; ห้ามแสดงรายการของ user อื่นหรือ hardcode ข้อความว่าเป็น message/product update |
@@ -86,6 +90,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | `client/src/components/routeAccess.ts` | pure redirect notice policy | รวม destination, title และ description ของ route redirect เพื่อให้ UI feedback และ tests ตรงกัน |
 | `notifications` / notification helpers | notification ต่อผู้ใช้ | `userId` เป็น ownership boundary; list/mark read filter ตาม current user เสมอ, product/system broadcast filter ตาม preferences และ admin broadcast ถูกคุมด้วย `adminProcedure` + rate limit |
 | `bundles` / `bundle_items` | แพ็กสินค้าแบบมีราคาของตนเอง | Bundle เก็บ metadata/ราคา; item relation เก็บ product slugs ที่ต้อง expand เป็น entitlement, โดยไม่สร้าง entitlement ให้ bundle slug |
+| `checkout_offers` | offer ก่อน Stripe | `sourceProductId`, `offerProductId`, `offerType`, `offerTotalPriceSatang`, `priority`, `status`; server ตรวจ target เป็น published และไม่ยอมรับ offer price สูงกว่าราคารวมปกติ |
 | `client/src/contexts/CartContext.tsx` | cart ฝั่ง browser | ห้ามถือว่า cart เป็น order, payment หรือ entitlement |
 | `client/src/data/catalog.ts` | type/formatter ฝั่ง client | ห้าม hardcode ราคา หรือ manuscript ใน client |
 | `drizzle/schema.ts` | schema ที่เป็น source of truth | แก้ schema → generate migration → review SQL → apply migration |
@@ -130,6 +135,8 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | ปิดขายชั่วคราว | เปลี่ยน status เป็น `draft` หรือ `archived` | สินค้าไม่สามารถเข้าสู่ checkout ใหม่ได้ |
 | ดูคำสั่งซื้อ | เปิด tab “คำสั่งซื้อ” | แสดง entitlement ที่ webhook ยืนยันแล้วเท่านั้น |
 | สร้างหรือแก้ Bundle | เปิด tab “Bundle”, เลือกอย่างน้อย 2 สินค้า, ตั้งราคา/หน้าปก/สถานะ | `adminProcedure`, Zod, product existence validation; Bundle ที่ publish ต้องมีเฉพาะสินค้าที่ publish แล้ว |
+| ตั้งตัวอย่าง | ใส่ JSON `intro` + `sections` ในสินค้า/Bundle | server จำกัด 2 sections, 2 paragraphs ต่อ section และไม่คืน paid content ผ่าน public detail API |
+| ตั้ง upsell/downsell | เปิด tab “Upsell / Downsell”, เลือกสินค้าต้นทาง, สินค้าที่เสนอ, ราคาแพ็ก, priority และสถานะ | `adminProcedure`, target ต้อง published, source/offer ห้ามซ้ำ, ราคา offer ห้ามสูงกว่าราคารวม และ checkout revalidates rule ทุกครั้ง |
 | ส่งประกาศ | เปิด tab “ประกาศ”, ระบุหัวข้อ ข้อความ และ internal path | `adminProcedure`, Zod internal-href guard, 12 broadcasts/hour/admin; ส่งเฉพาะผู้เปิด `systemEnabled` |
 
 ### Product content format
@@ -160,11 +167,11 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 
 | ลำดับ | ผู้กระทำ | เหตุการณ์ | Boundary |
 | --- | --- | --- | --- |
-| 1 | ผู้เข้าชม | เพิ่ม slug และจำนวนเข้าตะกร้า | cart เป็น convenience state เท่านั้น |
-| 2 | สมาชิก | ลงชื่อเข้าใช้แล้วเริ่ม checkout | `protectedProcedure` ผูก action กับ current user |
-| 3 | Server | validate cart และโหลด product/Bundle published จาก DB | ราคา/สินค้าใน browser ถูกละเลย; Bundle expand เป็น product IDs ภายในเท่านั้น |
+| 1 | ผู้เข้าชม | เปิด detail และอ่าน preview หรือเพิ่ม slug/จำนวนเข้าตะกร้า | preview ไม่มี paid JSON; cart เป็น convenience state เท่านั้น |
+| 2 | สมาชิก | เลือก “ดูข้อเสนอ” ก่อน checkout | `protectedProcedure` ผูก action กับ current user; upsell ก่อน และ downsell เมื่อปฏิเสธ |
+| 3 | Server | validate cart, optional offer และโหลด product/Bundle published จาก DB | ราคา/สินค้าใน browser ถูกละเลย; offer เป็น server-owned pair price; Bundle expand เป็น product IDs ภายในเท่านั้น |
 | 4 | Stripe | แสดง hosted checkout | ไม่มี payment data ผ่าน app server |
-| 5 | Stripe webhook | ตรวจ signature และ payment status แล้วเรียก `grantPurchaseAccess` ต่อ product ID | เฉพาะ Stripe event ที่ตรวจแล้วปลดล็อกได้; Bundle ไม่สร้าง entitlement ให้ bundle slug |
+| 5 | Stripe webhook | ตรวจ signature และ payment status แล้วเรียก `grantPurchaseAccess` ต่อ product ID | เฉพาะ Stripe event ที่ตรวจแล้วปลดล็อกได้; Bundle/offer ไม่สร้าง entitlement ให้ bundle slug แต่ expand เป็นรายการภายใน |
 | 6 | สมาชิก | เปิด `/library` และ `/read/:productId` | server ตรวจ `purchases` ก่อนคืน `content` |
 
 การเปิด DevTools, Inspect Element หรือดู JavaScript bundle ทำได้ตามธรรมชาติของเว็บ แต่ **ไม่ทำให้ผู้ใช้ได้รับสิทธิ์เพิ่มหรือแก้ข้อมูลในระบบได้** เพราะ entitlement, ราคา, role และ content verification อยู่ที่ server/database การป้องกันที่ถูกต้องคือไม่ส่ง paid manuscript, secrets หรือ admin privileges ไปยัง client ตั้งแต่แรก ไม่ใช่พยายาม “ปิด Inspect” ซึ่งไม่ใช่ security control
@@ -175,11 +182,13 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 | --- | --- | --- |
 | แก้ราคาใน client | checkout resolves DB products on server | client values ไม่มีราคา/currency |
 | เปิดเนื้อหาฟรี | `library.reader` checks auth + entitlement ก่อนส่ง content | public catalog ส่งเฉพาะ metadata |
+| preview รั่วเกินขอบเขต | `toPublicPreview()` รับเฉพาะ configured excerpt หรือ sanitize content fallback สูงสุด 2 sections | public detail ไม่มี field `content`, `coverKey` หรือ persistence metadata |
 | ปลอม payment success | Stripe raw webhook signature verification | redirect `/library?checkout=success` ไม่ปลดล็อกสิทธิ์ |
 | ข้ามสิทธิ์ admin | `adminProcedure` checks `ctx.user.role` ทุก endpoint | client admin page เป็นเพียง UX layer |
 | เห็น tab/CTA ข้ามบทบาท | `storefrontAccess.ts`, `StoreHeader`, mobile drawer และ route redirect | admin route ไม่อยู่ใน navigation ของ visitor/user/member ทั้ง desktop/mobile; drawer highlight จาก current route โดยไม่เปลี่ยน policy, และ server `adminProcedure` ยังคงปฏิเสธ direct API calls |
 | อ่านหรือแก้ notification ของผู้อื่น | `notifications.*` protected procedures + `userId` filter | Browser ส่งได้เพียง notification id; DB update บังคับ `id` และ `userId = current user` ร่วมกัน, admin broadcast ใช้ `adminProcedure` |
 | ข้ามราคา/สิทธิ์ของ Bundle | checkout resolve Bundle และ items จาก DB | browser ส่งได้เพียง bundle slug/quantity; server ใช้ราคาแพ็กและ Stripe metadata เก็บ product IDs ที่ expand แล้ว |
+| ปลอม offer/ราคาแพ็ก | server resolve `checkout_offers` ตาม ID, source item และ published status | browser ไม่ส่ง `offerTotalPriceSatang`; server แทน source+offer ด้วย line item เดียวพร้อม entitlement ที่รวมแล้ว |
 | ส่งข้อมูลผิดรูป | Zod validation และ content schema checks | slug, price, status, content, upload ถูกตรวจ server-side |
 | spam/abuse | API IP window, checkout/admin per-user windows | production ควรเปิด WAF/rate limits ของ hosting เพิ่ม |
 | cross-site mutation | same-origin check สำหรับ state-changing tRPC requests | webhook อยู่ก่อน guard และตรวจ Stripe signature เอง |
@@ -191,6 +200,12 @@ content เก็บเป็น JSON string เพื่อให้ API ตร
 ### ข้อจำกัดที่ต้องรับรู้
 
 ไม่มีเว็บใดรับประกันได้ว่า “เจาะไม่ได้ 100%” ทีมต้อง patch dependencies, rotate secrets, review Stripe events และใช้ WAF/observability ของ hosting ต่อเนื่อง หากเนื้อหาต้องซ่อนแม้จาก repository collaborators ให้นำ manuscript ออกจาก source control และดึงจาก storage/service ที่จำกัดสิทธิ์ทาง server แทน
+
+**สถานะ Stripe ณ รอบนี้:** Stripe Checkout ของ Bundle เปิดได้จริงและแสดงสินค้า/ยอดรวม **฿3,290** จากราคาในฐานข้อมูล แต่ Stripe แสดงสถานะ **Unclaimed sandbox** และแจ้งว่าไม่ประมวลผลการชำระเงินจริง จึงยังไม่สามารถทดสอบขั้น submit payment → webhook → entitlement ได้จนกว่าเจ้าของจะ claim test sandbox จาก Stripe Dashboard ก่อน ห้ามตีความว่าเงินของลูกค้าจะเข้าบัญชีใดในขณะสถานะนี้; หลัง claim แล้วปลายทางของเงินจริงคือ Stripe account ที่เป็นเจ้าของ `STRIPE_SECRET_KEY` ของ environment นั้น
+
+### Runbook: Bundle checkout หลัง claim Stripe Sandbox
+
+หลังเจ้าของ claim sandbox แล้ว ให้ลงชื่อเข้าใช้ marketplace ด้วยบัญชีทดสอบ เปิด `/product/digital-workflow-foundation` และกด “เลือกและดูข้อเสนอ” → “เปิด Stripe Checkout” จากนั้นเลือก Card และใช้หมายเลขบัตรทดสอบ Stripe ที่ระบุในเอกสาร Stripe พร้อมวันหมดอายุในอนาคต, CVC สามหลัก และ postal code ที่ Stripe ยอมรับ ห้ามใช้ข้อมูลบัตรจริงใน sandbox เมื่อ Stripe redirect กลับ `/library?checkout=success...` ให้ตรวจ Stripe Dashboard ว่ามี `checkout.session.completed` ที่ส่งถึง webhook สำเร็จ แล้วตรวจว่า `purchases` ของผู้ใช้นั้นมี **สี่** product IDs ภายใน Bundle (`atlas-of-attention`, `creative-compass`, `interface-intelligence`, `digital-workflow-course`) สุดท้ายเปิด reader ของแต่ละรายการจาก `/library` เพื่อยืนยันว่า entitlement ปลดล็อกเนื้อหาได้จริง หากรายการใดหายไป ให้ตรวจ `metadata.product_ids` ของ Session, webhook signature secret และ production webhook URL ก่อนแก้ข้อมูลในฐานข้อมูล
 
 ### Preview policy
 
@@ -251,7 +266,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **60 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Bundle server-side price/entitlement expansion, Stripe fulfillment, member-only reader, admin RBAC และ Bundle validation/selection/edit state, notification ownership/preferences และ interaction payloads, rendered product/reader deep links, Admin Bundle/Broadcast UI surfaces, storefront Bundle card, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC, strategy hero content, role-aware CTA policy, redirect notice policy, UI-level StoreHeader/Hero CTA และ mobile drawer สำหรับ visitor/user/member/admin และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **65 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Bundle server-side price/entitlement expansion, trusted offer aggregation, Stripe fulfillment, member-only reader, public preview sanitization, admin RBAC รวมถึง trusted offer-target validation, Bundle validation/selection/edit state, notification ownership/preferences และ interaction payloads, rendered product/reader deep links, Admin Bundle/Broadcast/Offer UI surfaces, mobile-safe pre-checkout offer dialog, storefront Bundle card, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC, strategy hero content, role-aware CTA policy, redirect notice policy, UI-level StoreHeader/Hero CTA และ mobile drawer สำหรับ visitor/user/member/admin และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 

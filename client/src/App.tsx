@@ -14,6 +14,7 @@ import Library from "./pages/Library";
 import MemberDashboard from "./pages/MemberDashboard";
 import Reader from "./pages/Reader";
 import Admin from "./pages/Admin";
+import ProductDetail from "./pages/ProductDetail";
 
 function AccessRedirect({ to, title, description }: { to: string; title: string; description: string }) {
   const [, navigate] = useLocation();
@@ -50,6 +51,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/library"} component={MemberRoute} />
       <Route path={"/dashboard"} component={MemberRoute} />
+      <Route path={"/product/:slug"} component={ProductDetail} />
       <Route path={"/read/:productId"} component={Reader} />
       <Route path={"/admin"} component={AdminRoute} />
       <Route path={"/404"} component={NotFound} />

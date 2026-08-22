@@ -9,7 +9,17 @@ vi.mock("@/components/StoreHeader", () => ({ StoreHeader: () => <header>Header</
 vi.mock("@/components/StorefrontHeroActions", () => ({ StorefrontHeroActions: () => <div>Hero actions</div> }));
 vi.mock("@/contexts/CartContext", () => ({ useCart: () => ({ addItem: vi.fn(), itemCount: 0, items: [], removeItem: vi.fn(), setQuantity: vi.fn(), subtotal: 0, clearCart: vi.fn() }) }));
 vi.mock("@/hooks/useScrollReveal", () => ({ useScrollReveal: () => undefined }));
-vi.mock("@/lib/trpc", () => ({ trpc: { catalog: { list: { useQuery: () => ({ data: [bundle], isLoading: false }) } }, testimonials: { listApproved: { useQuery: () => ({ data: [] }) } }, library: { list: { useQuery: () => ({ data: [] }) } }, commerce: { createCheckoutSession: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) } } } }));
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    catalog: { list: { useQuery: () => ({ data: [bundle], isLoading: false }) } },
+    testimonials: { listApproved: { useQuery: () => ({ data: [] }) } },
+    library: { list: { useQuery: () => ({ data: [] }) } },
+    commerce: {
+      offers: { useQuery: () => ({ data: { upsells: [], downsells: [] }, isLoading: false }) },
+      createCheckoutSession: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+    },
+  },
+}));
 
 import Home from "./Home";
 

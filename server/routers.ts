@@ -1,5 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
-import type { StoreProduct } from "@shared/products";
+import type { SellableProduct, StoreProduct } from "@shared/products";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -7,10 +7,14 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   createBundle,
+  createCheckoutOffer,
   createStoreProduct,
   createNotificationsForAllUsers,
   createOrUpdateTestimonial,
   getProductBySlug,
+  getPublishedCatalogItem,
+  getPublishedCheckoutOffer,
+  getPublishedSellablesBySlugs,
   getProductsBySlugs,
   getNotificationPreferences,
   getTestimonialById,
@@ -18,21 +22,24 @@ import {
   listAdminOrders,
   listAdminProducts,
   listAdminBundles,
+  listAdminCheckoutOffers,
   listAdminTestimonials,
   listApprovedTestimonials,
   listPublishedProducts,
   listPublishedBundles,
+  listPublishedCheckoutOffers,
   listUserNotifications,
   listUserPurchases,
   listUserTestimonials,
   updateTestimonialStatus,
   updateStoreProduct,
   updateBundle,
+  updateCheckoutOffer,
   updateNotificationPreferences,
   markAllNotificationsRead,
   markNotificationRead,
 } from "./db";
-import { parsePaidContent, toPublicProduct } from "./products";
+import { parsePaidContent, toPublicPreview, toPublicProduct } from "./products";
 import { createCheckoutSession } from "./stripe";
 import { storagePut } from "./storage";
 import { consumeRateLimit } from "./security";
@@ -54,6 +61,7 @@ const productInput = z
     unitCount: z.number().int().min(1).max(200),
     durationLabel: z.string().trim().min(2).max(80),
     content: z.string().trim().min(2).max(90000),
+    previewContent: z.string().trim().max(12000).nullable().optional(),
   })
   .superRefine((value, ctx) => {
     try {
@@ -99,14 +107,51 @@ const bundleInput = z.object({
   priceSatang: z.number().int().min(500, "ราคาต้องไม่น้อยกว่า 5 บาท").max(100000000),
   currency: z.literal("thb"),
   productIds: z.array(z.string().trim().min(1).max(96)).min(2, "Bundle ต้องมีอย่างน้อย 2 สินค้า").max(40),
+  previewContent: z.string().trim().max(12000).nullable().optional(),
 }).superRefine((value, ctx) => {
   if (new Set(value.productIds).size !== value.productIds.length) ctx.addIssue({ code: "custom", message: "ไม่สามารถใส่สินค้าเดิมซ้ำใน Bundle", path: ["productIds"] });
+});
+
+const checkoutOfferInput = z.object({
+  status: z.enum(["draft", "published", "archived"]),
+  offerType: z.enum(["upsell", "downsell"]),
+  sourceProductId: z.string().trim().min(1).max(96),
+  offerProductId: z.string().trim().min(1).max(96),
+  title: z.string().trim().min(2).max(180),
+  body: z.string().trim().min(2).max(600),
+  ctaLabel: z.string().trim().min(2).max(80),
+  offerTotalPriceSatang: z.number().int().min(500).max(100000000),
+  priority: z.number().int().min(-100).max(100),
+}).superRefine((value, ctx) => {
+  if (value.sourceProductId === value.offerProductId) ctx.addIssue({ code: "custom", message: "สินค้าแนะนำต้องไม่ซ้ำกับสินค้าต้นทาง", path: ["offerProductId"] });
 });
 
 async function validateBundleProducts(input: z.infer<typeof bundleInput>) {
   const products = await getProductsBySlugs(input.productIds);
   if (products.length !== input.productIds.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Bundle มีสินค้าที่ไม่พบในระบบ" });
   if (input.status === "published" && products.some((product) => product.status !== "published")) throw new TRPCError({ code: "BAD_REQUEST", message: "Bundle ที่เผยแพร่ต้องมีเฉพาะสินค้าที่เผยแพร่แล้ว" });
+}
+
+async function validateCheckoutOfferTargets(input: z.infer<typeof checkoutOfferInput>) {
+  const sellables = await getPublishedSellablesBySlugs([input.sourceProductId, input.offerProductId]);
+  if (sellables.length !== 2) throw new TRPCError({ code: "BAD_REQUEST", message: "Offer ต้องอ้างอิงสินค้าหรือ Bundle ที่เผยแพร่แล้วเท่านั้น" });
+  const bySlug = new Map(sellables.map((item) => [item.slug, item]));
+  const source = bySlug.get(input.sourceProductId);
+  const offer = bySlug.get(input.offerProductId);
+  if (!source || !offer) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่พบสินค้าที่ใช้สร้าง Offer" });
+  if (input.offerTotalPriceSatang > source.priceSatang + offer.priceSatang) throw new TRPCError({ code: "BAD_REQUEST", message: "ราคา Offer ต้องไม่สูงกว่าราคารวมปกติ" });
+}
+
+function toPublicSellable(item: Awaited<ReturnType<typeof getPublishedCatalogItem>>): SellableProduct | null {
+  if (!item) return null;
+  return "content" in item ? toPublicProduct(item) : item;
+}
+
+async function toPublicOffer(offer: Awaited<ReturnType<typeof getPublishedCheckoutOffer>>) {
+  if (!offer) return null;
+  const offerProduct = toPublicSellable(await getPublishedCatalogItem(offer.offerProductId));
+  if (!offerProduct) return null;
+  return { id: offer.id, offerType: offer.offerType, sourceProductId: offer.sourceProductId, offerProduct, title: offer.title, body: offer.body, ctaLabel: offer.ctaLabel, offerTotalPriceSatang: offer.offerTotalPriceSatang };
 }
 
 function getCoverUpload(dataUrl: string) {
@@ -137,10 +182,33 @@ export const appRouter = router({
       const [products, bundles] = await Promise.all([listPublishedProducts(), listPublishedBundles()]);
       return [...bundles, ...products.map(toPublicProduct)];
     }),
+    detail: publicProcedure.input(z.object({ slug: z.string().trim().min(1).max(96) })).query(async ({ input }) => {
+      const item = await getPublishedCatalogItem(input.slug);
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบสินค้าที่ต้องการ" });
+      const product = toPublicSellable(item);
+      if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบสินค้าที่ต้องการ" });
+      const includedProducts: StoreProduct[] = [];
+      if (item.productType === "bundle") {
+        for (const included of await getPublishedSellablesBySlugs(item.includedProductIds)) {
+          if ("content" in included) includedProducts.push(toPublicProduct(included));
+        }
+      }
+      return { product, preview: toPublicPreview(item), includedProducts };
+    }),
   }),
   commerce: router({
+    offers: publicProcedure.input(z.object({ sourceProductId: z.string().trim().min(1).max(96) })).query(async ({ input }) => {
+      const source = await getPublishedCatalogItem(input.sourceProductId);
+      if (!source) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบสินค้าต้นทาง" });
+      const [upsells, downsells] = await Promise.all([listPublishedCheckoutOffers(input.sourceProductId, "upsell"), listPublishedCheckoutOffers(input.sourceProductId, "downsell")]);
+      const [publicUpsells, publicDownsells] = await Promise.all([Promise.all(upsells.map(toPublicOffer)), Promise.all(downsells.map(toPublicOffer))]);
+      return {
+        upsells: publicUpsells.filter((offer): offer is NonNullable<typeof offer> => offer !== null),
+        downsells: publicDownsells.filter((offer): offer is NonNullable<typeof offer> => offer !== null),
+      };
+    }),
     createCheckoutSession: protectedProcedure
-      .input(z.object({ items: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).max(5) })).min(1) }))
+      .input(z.object({ items: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).max(5) })).min(1), offerId: z.number().int().positive().optional() }))
       .mutation(async ({ ctx, input }) => {
         if (!consumeRateLimit("checkout", ctx.user.id, 5, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "เริ่มชำระเงินบ่อยเกินไป กรุณาลองใหม่ในอีกสักครู่" });
         const host = ctx.req.get("host");
@@ -148,7 +216,10 @@ export const appRouter = router({
         if (!origin) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่พบที่อยู่สำหรับกลับสู่หน้าชำระเงิน" });
 
         try {
-          return await createCheckoutSession({ user: ctx.user, items: input.items, origin });
+          const offer = input.offerId ? await getPublishedCheckoutOffer(input.offerId) : undefined;
+          if (input.offerId && !offer) throw new TRPCError({ code: "BAD_REQUEST", message: "Offer นี้ไม่พร้อมใช้งานแล้ว" });
+          if (offer && !input.items.some((item) => item.productId === offer.sourceProductId)) throw new TRPCError({ code: "BAD_REQUEST", message: "Offer ไม่ตรงกับสินค้าที่เลือก" });
+          return await createCheckoutSession({ user: ctx.user, items: input.items, offer, origin });
         } catch (error) {
           console.error("[Checkout] Failed to create session", error);
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "ไม่สามารถเริ่มการชำระเงินได้ กรุณาลองใหม่อีกครั้ง" });
@@ -192,6 +263,19 @@ export const appRouter = router({
   admin: router({
     listProducts: adminProcedure.query(() => listAdminProducts()),
     listBundles: adminProcedure.query(() => listAdminBundles()),
+    listCheckoutOffers: adminProcedure.query(() => listAdminCheckoutOffers()),
+    createCheckoutOffer: adminProcedure.input(checkoutOfferInput).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-checkout-offer", ctx.user.id, 20, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึก Offer บ่อยเกินไป กรุณารอสักครู่" });
+      await validateCheckoutOfferTargets(input);
+      return createCheckoutOffer({ ...input, createdBy: ctx.user.id });
+    }),
+    updateCheckoutOffer: adminProcedure.input(z.object({ id: z.number().int().positive(), offer: checkoutOfferInput })).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-checkout-offer", ctx.user.id, 20, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึก Offer บ่อยเกินไป กรุณารอสักครู่" });
+      const exists = (await listAdminCheckoutOffers()).some((offer) => offer.id === input.id);
+      if (!exists) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบ Offer ที่ต้องการแก้ไข" });
+      await validateCheckoutOfferTargets(input.offer);
+      return updateCheckoutOffer(input.id, input.offer);
+    }),
     createBundle: adminProcedure.input(bundleInput).mutation(async ({ ctx, input }) => {
       if (!consumeRateLimit("admin-bundle", ctx.user.id, 20, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึก Bundle บ่อยเกินไป กรุณารอสักครู่" });
       await validateBundleProducts(input);

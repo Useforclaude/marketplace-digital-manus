@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { bundles, bundleItems, InsertStoreProduct, InsertUser, notificationPreferences, notifications, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
+import { bundles, bundleItems, checkoutOffers, InsertStoreProduct, InsertUser, notificationPreferences, notifications, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
 import { defaultProducts } from "./defaultProducts";
 import { ENV } from './_core/env';
 
@@ -118,7 +118,7 @@ type BundleInput = {
 
 async function attachBundleItems(sourceBundles: (typeof bundles.$inferSelect)[]) {
   const db = await getDb();
-  if (!db || sourceBundles.length === 0) return [] as ((typeof bundles.$inferSelect) & { productType: "bundle"; unitCount: number; durationLabel: string; includedProductIds: string[] })[];
+  if (!db || sourceBundles.length === 0) return [] as ((typeof bundles.$inferSelect) & { productType: "bundle"; accent: "lime"; unitCount: number; durationLabel: string; includedProductIds: string[] })[];
   const items = await db.select().from(bundleItems).where(inArray(bundleItems.bundleSlug, sourceBundles.map((bundle) => bundle.slug)));
   const byBundle = new Map<string, string[]>();
   items.forEach((item) => byBundle.set(item.bundleSlug, [...(byBundle.get(item.bundleSlug) ?? []), item.productId]));
@@ -146,6 +146,16 @@ export async function getPublishedBundlesBySlugs(slugs: string[]) {
   return attachBundleItems(await db.select().from(bundles).where(and(inArray(bundles.slug, slugs), eq(bundles.status, "published"))));
 }
 
+export async function getPublishedSellablesBySlugs(slugs: string[]) {
+  const [products, publishedBundles] = await Promise.all([getPublishedProductsBySlugs(slugs), getPublishedBundlesBySlugs(slugs)]);
+  return [...products, ...publishedBundles];
+}
+
+export async function getPublishedCatalogItem(slug: string) {
+  const [products, publishedBundles] = await Promise.all([getPublishedProductsBySlugs([slug]), getPublishedBundlesBySlugs([slug])]);
+  return [...products, ...publishedBundles][0];
+}
+
 export async function createBundle({ productIds, ...bundle }: BundleInput & { createdBy: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable while creating a bundle.");
@@ -165,6 +175,52 @@ export async function updateBundle(slug: string, { productIds, ...bundle }: Bund
     await tx.insert(bundleItems).values(productIds.map((productId) => ({ bundleSlug: slug, productId })));
   });
   return (await listAdminBundles()).find((item) => item.slug === slug);
+}
+
+export type CheckoutOfferInput = {
+  status: "draft" | "published" | "archived";
+  offerType: "upsell" | "downsell";
+  sourceProductId: string;
+  offerProductId: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  offerTotalPriceSatang: number;
+  priority: number;
+};
+
+export async function listAdminCheckoutOffers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(checkoutOffers).orderBy(desc(checkoutOffers.updatedAt));
+}
+
+export async function listPublishedCheckoutOffers(sourceProductId: string, offerType: "upsell" | "downsell") {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(checkoutOffers).where(and(eq(checkoutOffers.sourceProductId, sourceProductId), eq(checkoutOffers.offerType, offerType), eq(checkoutOffers.status, "published"))).orderBy(desc(checkoutOffers.priority), desc(checkoutOffers.updatedAt));
+}
+
+export async function getPublishedCheckoutOffer(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(checkoutOffers).where(and(eq(checkoutOffers.id, id), eq(checkoutOffers.status, "published"))).limit(1);
+  return result[0];
+}
+
+export async function createCheckoutOffer(offer: CheckoutOfferInput & { createdBy: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while creating checkout offer.");
+  const result = await db.insert(checkoutOffers).values(offer);
+  const id = Number(result[0].insertId);
+  return (await listAdminCheckoutOffers()).find((item) => item.id === id);
+}
+
+export async function updateCheckoutOffer(id: number, offer: CheckoutOfferInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating checkout offer.");
+  await db.update(checkoutOffers).set(offer).where(eq(checkoutOffers.id, id));
+  return (await listAdminCheckoutOffers()).find((item) => item.id === id);
 }
 
 export async function listAdminProducts() {

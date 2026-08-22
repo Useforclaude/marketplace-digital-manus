@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db", () => ({
-  createBundle: vi.fn(), createNotificationsForAllUsers: vi.fn(), createStoreProduct: vi.fn(), createOrUpdateTestimonial: vi.fn(), getProductBySlug: vi.fn(), getProductsBySlugs: vi.fn(), getTestimonialById: vi.fn(), hasProductAccess: vi.fn(), listAdminBundles: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listAdminTestimonials: vi.fn(), listApprovedTestimonials: vi.fn(), listPublishedBundles: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), listUserTestimonials: vi.fn(), updateBundle: vi.fn(), updateStoreProduct: vi.fn(), updateTestimonialStatus: vi.fn(),
+  createBundle: vi.fn(), createCheckoutOffer: vi.fn(), createNotificationsForAllUsers: vi.fn(), createStoreProduct: vi.fn(), createOrUpdateTestimonial: vi.fn(), getProductBySlug: vi.fn(), getProductsBySlugs: vi.fn(), getPublishedSellablesBySlugs: vi.fn(), getTestimonialById: vi.fn(), hasProductAccess: vi.fn(), listAdminBundles: vi.fn(), listAdminCheckoutOffers: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listAdminTestimonials: vi.fn(), listApprovedTestimonials: vi.fn(), listPublishedBundles: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), listUserTestimonials: vi.fn(), updateBundle: vi.fn(), updateCheckoutOffer: vi.fn(), updateStoreProduct: vi.fn(), updateTestimonialStatus: vi.fn(),
 }));
 vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 
-import { createBundle, createNotificationsForAllUsers, createStoreProduct, getProductsBySlugs } from "./db";
+import { createBundle, createCheckoutOffer, createNotificationsForAllUsers, createStoreProduct, getProductsBySlugs, getPublishedSellablesBySlugs } from "./db";
 import { appRouter } from "./routers";
 
 const mockCreate = vi.mocked(createStoreProduct);
 const mockCreateBundle = vi.mocked(createBundle);
 const mockBundleProducts = vi.mocked(getProductsBySlugs);
+const mockCreateOffer = vi.mocked(createCheckoutOffer);
+const mockOfferTargets = vi.mocked(getPublishedSellablesBySlugs);
 const validProduct = {
   slug: "thai-test-product", productType: "ebook" as const, status: "draft" as const, title: "สินค้าทดสอบ", subtitle: null, description: "รายละเอียดสินค้าทดสอบที่ยาวเพียงพอ", category: "ทดสอบ", coverUrl: "/manus-storage/cover.png", coverKey: null, accent: "lime" as const, priceSatang: 79000, currency: "thb" as const, unitCount: 1, durationLabel: "10 นาที", content: JSON.stringify({ kind: "ebook", intro: "เกริ่นนำ", chapters: [{ title: "บทหนึ่ง", body: ["เนื้อหา"] }] }),
 };
 const validBundle = {
   slug: "focus-foundation", status: "draft" as const, title: "ชุดตั้งหลักโฟกัส", subtitle: null, description: "ชุดความรู้สำหรับผู้ที่ต้องการทำงานอย่างมีสมาธิและตัดสินใจได้ชัดเจน", category: "การทำงาน", coverUrl: "/manus-storage/bundle-cover.png", priceSatang: 129000, currency: "thb" as const, productIds: ["atlas-of-attention", "decision-playbook"],
+};
+const validOffer = {
+  status: "published" as const, offerType: "upsell" as const, sourceProductId: "atlas-of-attention", offerProductId: "creative-compass",
+  title: "เสริมเครื่องมือคิด", body: "เพิ่มเข็มทิศความคิดสร้างสรรค์ในราคาพิเศษ", ctaLabel: "รับข้อเสนอพิเศษ", offerTotalPriceSatang: 119000, priority: 10,
 };
 
 function caller(role: "admin" | "user") {
@@ -53,6 +59,21 @@ describe("administrator product controls", () => {
   it("rejects a Bundle when one requested product is absent from the trusted catalog", async () => {
     mockBundleProducts.mockResolvedValue([{ ...validProduct, slug: "atlas-of-attention" }] as never);
     await expect(caller("admin").admin.createBundle(validBundle)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("limits checkout offer management to admins and validates both trusted targets", async () => {
+    await expect(caller("user").admin.createCheckoutOffer(validOffer)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    mockOfferTargets.mockResolvedValue([{ ...validProduct, slug: "atlas-of-attention", status: "published" }] as never);
+    await expect(caller("admin").admin.createCheckoutOffer(validOffer)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    mockOfferTargets.mockResolvedValue([
+      { ...validProduct, slug: "atlas-of-attention", status: "published" },
+      { ...validProduct, slug: "creative-compass", status: "published" },
+    ] as never);
+    mockCreateOffer.mockResolvedValue({ ...validOffer, id: 7, createdBy: 22, createdAt: new Date(), updatedAt: new Date() } as never);
+    const result = await caller("admin").admin.createCheckoutOffer(validOffer);
+    expect(result?.id).toBe(7);
+    expect(mockCreateOffer).toHaveBeenCalledWith(expect.objectContaining({ createdBy: 22, offerTotalPriceSatang: 119000 }));
   });
 
   it("emits product-specific storefront deep links when a product or Bundle is published", async () => {

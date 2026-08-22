@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toPublicProduct } from "./products";
+import { toPublicPreview, toPublicProduct } from "./products";
 
 describe("public product boundary", () => {
   it("omits protected content and internal persistence fields from browser catalog data", () => {
@@ -11,5 +11,19 @@ describe("public product boundary", () => {
     expect(product).not.toHaveProperty("content");
     expect(product).not.toHaveProperty("coverKey");
     expect(product).toMatchObject({ slug: "private-product", priceSatang: 99000 });
+  });
+
+  it("returns at most two sanitized public preview sections without exposing paid content", () => {
+    const preview = toPublicPreview({
+      previewContent: JSON.stringify({ intro: "อ่านได้ก่อนซื้อ", sections: [
+        { title: "ตัวอย่างหนึ่ง", body: ["ย่อหน้าที่เปิดเผยได้", "อีกย่อหน้า"] },
+        { title: "ตัวอย่างสอง", body: ["เนื้อหาสาธารณะ"] },
+        { title: "ต้องไม่ถูกส่ง", body: ["เกินขอบเขต"] },
+      ] }),
+      content: '{"chapters":[{"title":"ความลับที่ชำระเงินแล้ว"}]}',
+    });
+    expect(preview?.intro).toBe("อ่านได้ก่อนซื้อ");
+    expect(preview?.sections).toHaveLength(2);
+    expect(JSON.stringify(preview)).not.toContain("ความลับที่ชำระเงินแล้ว");
   });
 });

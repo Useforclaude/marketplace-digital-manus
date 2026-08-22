@@ -57,6 +57,13 @@
       "when": 1787366091931,
       "tag": "0007_silly_rumiko_fujikawa",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787369249068,
+      "tag": "0008_mighty_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }
