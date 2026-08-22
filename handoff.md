@@ -10,7 +10,7 @@
 
 | ความสามารถ | สถานะปัจจุบัน | ตำแหน่งหลัก |
 | --- | --- | --- |
-| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic low-angle single-mentor hero ที่เน้นมือ foreground ถือหมากคิงสีทองลอยเหนือกระดานหมากรุกดำ เพื่อสื่อถึงการคิดเชิงกลยุทธ์โดยไม่รับประกันความสำเร็จ, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
+| หน้าร้านภาษาไทย | Dark editorial storefront, lime–emerald CTA, cinematic low-angle strategy-board hero ที่ใช้ฟิกเกอร์บุคคลหลายบทบาทแทนหมากมาตรฐาน โดย CEO ลอยเหนือกระดานจากมือ mentor และทีม Marketing, Programmer, Finance, Sales อยู่บนฐานตำแหน่ง เพื่อสื่อถึงการคิดเชิงกลยุทธ์โดยไม่รับประกันความสำเร็จ, responsive layout และ scroll-triggered reveal motion | `client/src/pages/Home.tsx`, `client/src/pages/homeContent.ts`, `client/src/hooks/useScrollReveal.ts` |
 | Social proof | แสดง feedback เฉพาะผู้เรียนที่ซื้อจริง, ยินยอม และผ่านการอนุมัติแล้ว; หากยังไม่มีข้อมูลจะใช้ empty state ที่โปร่งใส โดยไม่มีข้อมูลตัวอย่างหรือคำยืนยันที่สร้างขึ้น | `client/src/pages/homeContent.ts`, `client/src/pages/Home.tsx`, `server/routers.ts` |
 | Testimonial moderation | ผู้เรียนส่ง feedback จากสินค้าที่ตนซื้อพร้อม consent; admin เปลี่ยนสถานะเป็น `approved`, `hidden`, `rejected` หรือ `pending` ได้ | `testimonials`, `client/src/pages/MemberDashboard.tsx`, `client/src/pages/Admin.tsx` |
 | สินค้าดิจิทัล | รองรับ `ebook` และ `course`, สถานะ draft/published/archived | `store_products`, `drizzle/schema.ts` |
@@ -68,7 +68,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 
 | Path | หน้าที่ | ข้อควรระวังในการดูแล |
 | --- | --- | --- |
-| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset low-angle fictional mentor + foreground floating gold king จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area; social proof ต้อง query ได้เพียง approved+consented feedback |
+| `client/src/pages/Home.tsx` | หน้า storefront ภาษาไทย | รักษาปุ่ม “เพิ่มลงตะกร้า” และ “ซื้อเลย” ให้ปรากฏชัดในทุก card; hero ใช้ asset low-angle fictional mentor + team of human-figurine role pieces จาก `homeContent.ts` พร้อม progressive dark overlay และ text-safe left area; social proof ต้อง query ได้เพียง approved+consented feedback |
 | `client/src/pages/homeContent.ts` | hero asset, headline alternatives และ copy/structure ของ social proof | เก็บ URL hero, `HERO_HEADLINE_OPTIONS` และ social-proof disclosure ให้เป็น pure content ที่ test ได้; ห้ามใส่ชื่อ, คำพูด, rating, outcome metric หรือข้อมูลตัวอย่างที่อาจถูกมองเป็นรีวิวจริง |
 | `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิกและ form ส่ง feedback | รับ feedback เฉพาะจากสินค้าที่ซื้อ; ต้องติ๊ก consent ก่อนส่ง; สิ่งที่ผู้ใช้ส่งใหม่กลับสู่ `pending` เสมอ |
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
@@ -181,7 +181,7 @@ Manus Preview ต้อง render เว็บไซต์ใน managed frame �
 
 ## 9. Copywriting Direction
 
-หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน และใช้ mentor ธุรกิจสมมติคนเดียวในมุมกล้อง low-angle โดยให้มือ foreground ถือหมากคิงสีทองที่ยังลอยอยู่เหนือกระดานหมากรุกดำ เพื่อสื่อถึงช่วงคิดก่อนการตัดสินใจ ไม่ใช่การรับประกัน “เคล็ดลับ” หรือความสำเร็จ Hero ที่เลือกใช้คือ “ก่อนจะวางหมากแรก / คุณต้องอ่านเกมให้ออก” และเก็บตัวเลือกภาษาไทยอีกสองแบบไว้ใน `HERO_HEADLINE_OPTIONS` เพื่อเปรียบเทียบในอนาคต ภาพเป็นตัวละครต้นฉบับ ไม่สื่อว่าเกี่ยวข้องกับผู้มีชื่อเสียงจริง และเว้นด้านซ้ายเป็น text-safe area เสมอ eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
+หน้า storefront ใช้ conversion copywriting ที่ให้ **ความชัดเจนมาก่อนคำคม**: Hero ปัจจุบันสื่อกับคนที่รู้ว่าตัวเองไปได้ไกลกว่านี้ แต่ยังไม่มีเส้นทางชัดเจน และใช้กระดานกลยุทธ์ที่วางฟิกเกอร์บุคคลสมมติหลายบทบาทไว้บนฐานหมาก ได้แก่ CEO, Marketing, Programmer, Finance และ Sales โดยมือ mentor ยกฟิกเกอร์ CEO ให้ลอยอยู่เหนือกระดาน เพื่อสื่อถึงช่วงคิดก่อนตัดสินใจและการมองเห็นบทบาทของทีม ไม่ใช่การรับประกัน “เคล็ดลับ” หรือความสำเร็จ Hero ที่เลือกใช้คือ “ก่อนจะวางหมากแรก / คุณต้องอ่านเกมให้ออก” และเก็บตัวเลือกภาษาไทยอีกสองแบบไว้ใน `HERO_HEADLINE_OPTIONS` เพื่อเปรียบเทียบในอนาคต ภาพเป็นตัวละครต้นฉบับ ไม่สื่อว่าเกี่ยวข้องกับผู้มีชื่อเสียงจริง และเว้นด้านซ้ายเป็น text-safe area เสมอ eBook และคอร์สจึงถูกวางเป็น “บันไดขั้นแรก” เพื่อเปลี่ยนความตั้งใจให้เป็นทักษะ การตัดสินใจ และก้าวที่ทำได้จริง แต่ละ section ผลักเหตุผลเดียว—ความรู้สึกติดอยู่, ทางเลือกสินค้า, วิธีได้รับสิทธิ์ และการลงมือเลือก—เพื่อลดความลังเลก่อนซื้อ [6] [7]
 
 ส่วน “ผลลัพธ์จากผู้เรียน” ใช้หลัก **social proof ที่รอหลักฐาน ไม่ใช่การสร้างหลักฐาน**: สมาชิกส่ง feedback ได้เฉพาะสินค้าที่มี entitlement และต้องติ๊ก consent ที่ชัดเจนทุกครั้ง ผลงานใหม่เข้า `pending` และแสดงในหลังบ้านให้ admin อนุมัติ, ซ่อน, ปฏิเสธ หรือส่งกลับเป็นรอตรวจ เมื่อ public API จะคืนเฉพาะ `approved` + `consentToPublish = true` เท่านั้น ห้ามเติม quote, ชื่อบุคคล, คะแนนดาว, ตัวเลขผลลัพธ์ หรือ testimonial จำลองไม่ว่ากรณีใด
 
@@ -234,7 +234,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **31 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **32 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Stripe entitlement parsing, member-only reader, admin RBAC, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC, strategy hero content และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 

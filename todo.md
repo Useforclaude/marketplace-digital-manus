@@ -68,3 +68,5 @@
 - [x] Create and integrate a more powerful low-angle single-mentor hero with a large foreground hand holding a gold king mid-air above black chess pieces.
 - [x] Replace the hero headline with a strategy-led version and prepare two additional Thai headline alternatives for selection.
 - [x] Verify desktop/mobile composition, update handoff, then commit and push the new hero direction.
+- [x] Create and integrate a cinematic strategy-board hero using original human figurine chess pieces for CEO, Marketing, Programmer, Finance, and Sales roles.
+- [x] Verify the role labels, low-angle composition, and Thai copy on desktop/mobile; update handoff, then commit and push the feature branch update.

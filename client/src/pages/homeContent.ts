@@ -1,4 +1,4 @@
-export const HOME_HERO_IMAGE = "/manus-storage/brightline-low-angle-gold-king-hero_e72d8a9f.jpg";
+export const HOME_HERO_IMAGE = "/manus-storage/brightline-human-role-chess-hero-v2_56b4b758.jpg";
 
 export const HERO_HEADLINE_OPTIONS = [
   {
