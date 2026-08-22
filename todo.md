@@ -77,3 +77,7 @@
 - [x] Update remaining storefront CTA labels to use consistent strategy-board language beyond the hero.
 - [x] Add UI-level coverage for visitor, user, member, and admin storefront navigation/CTA rendering.
 - [x] Verify responsive role-aware states, commit, and push the finalized access-aware storefront update.
+- [x] Show an explanatory toast before redirecting visitors, members, or admins away from a route they cannot use.
+- [x] Add a role-aware Header identity treatment with avatar fallback, account name, and the correct account destination.
+- [x] Build an accessible mobile navigation drawer that uses the same role-aware navigation policy as desktop.
+- [x] Add automated coverage for redirect feedback, Header identity, and mobile drawer role states; verify responsive UI, update handoff, then commit and push.

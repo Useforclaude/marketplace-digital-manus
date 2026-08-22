@@ -1,8 +1,11 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { getRouteRedirectNotice } from "@/components/routeAccess";
 import NotFound from "@/pages/NotFound";
-import { Redirect, Route, Switch } from "wouter";
+import { toast } from "sonner";
+import { useEffect, useRef } from "react";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -12,19 +15,31 @@ import MemberDashboard from "./pages/MemberDashboard";
 import Reader from "./pages/Reader";
 import Admin from "./pages/Admin";
 
+function AccessRedirect({ to, title, description }: { to: string; title: string; description: string }) {
+  const [, navigate] = useLocation();
+  const didRedirect = useRef(false);
+  useEffect(() => {
+    if (didRedirect.current) return;
+    didRedirect.current = true;
+    toast.message(title, { description });
+    navigate(to, { replace: true });
+  }, [description, navigate, title, to]);
+  return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] text-sm text-white/50">กำลังพาคุณไปยังพื้นที่ที่เหมาะกับบัญชีนี้…</div>;
+}
+
 function AdminRoute() {
   const { isAuthenticated, loading, user } = useAuth();
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] text-sm text-white/50">กำลังตรวจสอบสิทธิ์…</div>;
-  if (!isAuthenticated) return <Redirect to="/" />;
-  if (user?.role !== "admin") return <Redirect to="/dashboard" />;
+  const redirect = getRouteRedirectNotice({ target: "admin", isAuthenticated, role: user?.role });
+  if (redirect) return <AccessRedirect {...redirect} />;
   return <Admin />;
 }
 
 function MemberRoute() {
   const { isAuthenticated, loading, user } = useAuth();
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] text-sm text-white/50">กำลังตรวจสอบสิทธิ์…</div>;
-  if (!isAuthenticated) return <Redirect to="/" />;
-  if (user?.role === "admin") return <Redirect to="/admin" />;
+  const redirect = getRouteRedirectNotice({ target: "member", isAuthenticated, role: user?.role });
+  if (redirect) return <AccessRedirect {...redirect} />;
   return <MemberDashboard />;
 }
 
