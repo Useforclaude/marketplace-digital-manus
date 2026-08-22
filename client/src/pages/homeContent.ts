@@ -1,4 +1,30 @@
-export const HOME_HERO_IMAGE = "/manus-storage/brightline-mysterious-tycoon-chess-hero_3f56580b.jpg";
+export const HOME_HERO_IMAGE = "/manus-storage/brightline-low-angle-gold-king-hero_e72d8a9f.jpg";
+
+export const HERO_HEADLINE_OPTIONS = [
+  {
+    label: "กลยุทธ์ก่อนหมากแรก",
+    eyebrow: "เกมใหญ่ เริ่มก่อนหมากแรก",
+    lead: "ก่อนจะวางหมากแรก",
+    highlight: "คุณต้องอ่านเกมให้ออก",
+    description: "Brightline ช่วยคุณเปลี่ยนความอยากไปไกล ให้เป็นทักษะ มุมมอง และการตัดสินใจที่มีเหตุผลมากขึ้น",
+  },
+  {
+    label: "อย่ารีบเดิน",
+    eyebrow: "ทุกการตัดสินใจมีต้นทุน",
+    lead: "เกมใหญ่ไม่ชนะ",
+    highlight: "ด้วยหมากที่รีบวาง",
+    description: "เลือกเรียนเรื่องที่ใช่ก่อนลงมือ เพื่อให้ทุกก้าวต่อจากนี้ชัดเจนและใช้ได้จริง",
+  },
+  {
+    label: "มองให้ครบกระดาน",
+    eyebrow: "มุมมองเปลี่ยนการตัดสินใจ",
+    lead: "การตัดสินใจที่ต่าง",
+    highlight: "เริ่มจากมองเห็นทั้งกระดาน",
+    description: "เริ่มจากความรู้ที่เป็นระบบ แล้วค่อยเปลี่ยนสิ่งที่คุณเข้าใจให้เป็นก้าวต่อไปของตัวเอง",
+  },
+] as const;
+
+export const ACTIVE_HERO_HEADLINE = HERO_HEADLINE_OPTIONS[0];
 
 export const SOCIAL_PROOF = {
   eyebrow: "ผลลัพธ์จากผู้เรียน",

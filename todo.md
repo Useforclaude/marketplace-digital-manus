@@ -65,3 +65,6 @@
 - [x] Verify the new mentor hero on desktop/mobile, update handoff, then commit and push the feature branch update.
 - [x] Create and integrate a cinematic original single-mentor hero: shadowed tycoon, half-lit face, black chessboard, and a gold chess piece in hand.
 - [x] Verify the mysterious mentor hero on desktop/mobile, update handoff, then commit and push the feature branch update.
+- [x] Create and integrate a more powerful low-angle single-mentor hero with a large foreground hand holding a gold king mid-air above black chess pieces.
+- [x] Replace the hero headline with a strategy-led version and prepare two additional Thai headline alternatives for selection.
+- [x] Verify desktop/mobile composition, update handoff, then commit and push the new hero direction.
