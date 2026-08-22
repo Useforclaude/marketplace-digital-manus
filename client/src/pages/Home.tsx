@@ -9,7 +9,7 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { trpc } from "@/lib/trpc";
 import { ACTIVE_HERO_HEADLINE, HOME_HERO_IMAGE, SOCIAL_PROOF } from "@/pages/homeContent";
 import { ArrowDownRight, ArrowUpRight, BadgeCheck, Check, MessageSquareQuote, Minus, Plus, ShieldCheck, ShoppingBag, Sparkles, X, Zap } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 
 export default function Home() {

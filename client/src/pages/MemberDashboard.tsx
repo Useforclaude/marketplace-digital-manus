@@ -20,6 +20,12 @@ function testimonialStatusLabel(status: "pending" | "approved" | "hidden" | "rej
   return "รอทีมตรวจสอบ";
 }
 
+export type NotificationPreferenceValues = { productEnabled: boolean; purchaseEnabled: boolean; systemEnabled: boolean };
+
+export function buildNotificationPreferenceUpdate(current: NotificationPreferenceValues | undefined, key: keyof NotificationPreferenceValues, value: boolean): NotificationPreferenceValues {
+  return { productEnabled: current?.productEnabled ?? true, purchaseEnabled: current?.purchaseEnabled ?? true, systemEnabled: current?.systemEnabled ?? true, [key]: value };
+}
+
 export default function MemberDashboard() {
   const { isAuthenticated, loading, user } = useAuth({ redirectOnUnauthenticated: true });
   const utils = trpc.useUtils();
@@ -44,8 +50,7 @@ export default function MemberDashboard() {
     onError: (error) => toast.error("บันทึกการตั้งค่าไม่สำเร็จ", { description: error.message }),
   });
   const setNotificationPreference = (key: "productEnabled" | "purchaseEnabled" | "systemEnabled", value: boolean) => {
-    const current = notificationPreferences.data;
-    updateNotificationPreferences.mutate({ productEnabled: current?.productEnabled ?? true, purchaseEnabled: current?.purchaseEnabled ?? true, systemEnabled: current?.systemEnabled ?? true, [key]: value });
+    updateNotificationPreferences.mutate(buildNotificationPreferenceUpdate(notificationPreferences.data, key, value));
   };
   useScrollReveal(library.length);
 

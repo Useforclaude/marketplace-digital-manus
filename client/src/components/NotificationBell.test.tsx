@@ -11,10 +11,11 @@ describe("NotificationBellContent", () => {
     expect(html).toContain("ยังไม่มีการแจ้งเตือนใหม่");
   });
 
-  it("renders unread product notifications with the correct destination", () => {
-    const html = renderToStaticMarkup(<NotificationBellContent items={[{ id: 7, kind: "product", title: "มีหมากใหม่บนกระดาน", body: "คอร์สกลยุทธ์", href: "/#editions", readAt: null, createdAt: new Date() }]} {...actions} />);
+  it("renders product and purchase notifications with their protected deep-link destinations", () => {
+    const html = renderToStaticMarkup(<NotificationBellContent items={[{ id: 7, kind: "product", title: "มีหมากใหม่บนกระดาน", body: "คอร์สกลยุทธ์", href: "/#product-focus-atlas", readAt: null, createdAt: new Date() }, { id: 8, kind: "purchase", title: "เปิดสิทธิ์แล้ว", body: "พร้อมอ่าน", href: "/read/focus-atlas", readAt: null, createdAt: new Date() }]} {...actions} />);
     expect(html).toContain("มีหมากใหม่บนกระดาน");
-    expect(html).toContain('href="/#editions"');
+    expect(html).toContain('href="/#product-focus-atlas"');
+    expect(html).toContain('href="/read/focus-atlas"');
     expect(html).toContain("อ่านทั้งหมด");
   });
 });

@@ -90,8 +90,16 @@
 - [x] Add an admin broadcast composer for sending a validated system notification to opted-in users.
 - [x] Add an account notification-settings surface for users to manage their own notification categories.
 - [x] Extend notification deep links to navigate to related product details or purchased reader content safely.
-- [ ] Add tests, verify desktop/mobile interactions, update handoff, then commit and push the broadcast/preferences/deep-link update.
+- [x] Add tests, verify desktop/mobile interactions, update handoff, then commit and push the broadcast/preferences/deep-link update.
 - [x] Add bundle and bundle-item data models so admins can compose products into a priced package.
 - [x] Add admin bundle management with product selection, package pricing, publish status, and validation.
 - [x] Extend catalog, cart, Stripe checkout, webhook fulfillment, and library entitlements so a purchased bundle unlocks every included product.
-- [ ] Add tests for bundle authorization, server-side pricing, and entitlement expansion; verify UI, update handoff, then commit and push.
+- [x] Add tests for bundle authorization, server-side pricing, and entitlement expansion; verify UI, update handoff, then commit and push.
+- [x] Verify the admin broadcast composer and member notification-preferences screens on desktop and mobile, and add focused UI tests/snapshots for those surfaces plus deep-link href expectations.
+- [x] Verify the admin Bundle-management UI on desktop and mobile, and add focused UI tests/snapshots for bundle form/list interactions and bundle card rendering.
+- [x] Add focused tests for rendered notification deep links, including product cards and purchased reader destinations.
+- [x] Add focused UI tests for member notification-preference controls and admin broadcast composer behavior beyond static text presence.
+- [x] Add a focused storefront test for Bundle card rendering, including the Bundle label and included-product count.
+- [x] Add focused Admin Bundle-management tests covering selected product membership and bundle edit state.
+- [x] Add an interaction-focused test for the admin broadcast composer that verifies normalized form payload behavior beyond static rendering.
+- [x] Add interaction-focused tests for member notification-preference controls that verify toggle payloads for all categories.

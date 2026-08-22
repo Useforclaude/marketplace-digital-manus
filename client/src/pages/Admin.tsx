@@ -3,12 +3,14 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { formatCurrency } from "@/data/catalog";
 import { trpc } from "@/lib/trpc";
 import { BellRing, Boxes, CheckCircle2, EyeOff, Loader2, MessageSquareQuote, PackagePlus, Save, Send, ShieldCheck, Upload, X } from "lucide-react";
-import { ChangeEvent, useMemo, useState } from "react";
+import React, { ChangeEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type ProductKind = "ebook" | "course";
 type ProductStatus = "draft" | "published" | "archived";
 type TestimonialStatus = "pending" | "approved" | "hidden" | "rejected";
+type AdminTab = "products" | "bundles" | "orders" | "testimonials" | "notifications";
+type BroadcastForm = { title: string; body: string; href: string };
 
 type BundleForm = {
   slug: string;
@@ -50,6 +52,12 @@ const emptyBundleForm = (): BundleForm => ({
   slug: "", status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", priceBaht: "", productIds: [],
 });
 
+function getInitialAdminTab(): AdminTab {
+  if (typeof window === "undefined") return "products";
+  const candidate = new URLSearchParams(window.location.search).get("tab");
+  return candidate === "bundles" || candidate === "orders" || candidate === "testimonials" || candidate === "notifications" ? candidate : "products";
+}
+
 function recordToForm(product: { slug: string; productType: ProductKind; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; coverKey: string | null; accent: ProductForm["accent"]; priceSatang: number; unitCount: number; durationLabel: string; content: string }): ProductForm {
   return {
     slug: product.slug,
@@ -69,7 +77,7 @@ function recordToForm(product: { slug: string; productType: ProductKind; status:
   };
 }
 
-function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; priceSatang: number; includedProductIds: string[] }): BundleForm {
+export function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; priceSatang: number; includedProductIds: string[] }): BundleForm {
   return {
     slug: bundle.slug,
     status: bundle.status,
@@ -81,6 +89,14 @@ function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title
     priceBaht: String(bundle.priceSatang / 100),
     productIds: bundle.includedProductIds,
   };
+}
+
+export function toggleBundleProductIds(productIds: string[], productId: string) {
+  return productIds.includes(productId) ? productIds.filter((id) => id !== productId) : [...productIds, productId];
+}
+
+export function normalizeBroadcastPayload({ title, body, href }: BroadcastForm) {
+  return { title: title.trim(), body: body.trim(), href: href.trim() || "/" };
 }
 
 function TestimonialStatusBadge({ status }: { status: TestimonialStatus }) {
@@ -101,12 +117,12 @@ export default function Admin() {
   const bundles = trpc.admin.listBundles.useQuery(undefined, { enabled: user?.role === "admin" });
   const orders = trpc.admin.listOrders.useQuery(undefined, { enabled: user?.role === "admin" });
   const testimonials = trpc.admin.listTestimonials.useQuery(undefined, { enabled: user?.role === "admin" });
-  const [activeTab, setActiveTab] = useState<"products" | "bundles" | "orders" | "testimonials" | "notifications">("products");
+  const [activeTab, setActiveTab] = useState<AdminTab>(getInitialAdminTab);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(() => emptyForm());
   const [editingBundleSlug, setEditingBundleSlug] = useState<string | null>(null);
   const [bundleForm, setBundleForm] = useState<BundleForm>(() => emptyBundleForm());
-  const [broadcastForm, setBroadcastForm] = useState({ title: "", body: "", href: "/" });
+  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>({ title: "", body: "", href: "/" });
 
   const productMap = useMemo(() => new Map((products.data ?? []).map((product) => [product.slug, product])), [products.data]);
   const bundleMap = useMemo(() => new Map((bundles.data ?? []).map((bundle) => [bundle.slug, bundle])), [bundles.data]);
@@ -206,9 +222,9 @@ export default function Admin() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const toggleBundleProduct = (productId: string) => {
-    setBundleForm((current) => ({ ...current, productIds: current.productIds.includes(productId) ? current.productIds.filter((id) => id !== productId) : [...current.productIds, productId] }));
+    setBundleForm((current) => ({ ...current, productIds: toggleBundleProductIds(current.productIds, productId) }));
   };
-  const submitBroadcast = () => broadcastNotification.mutate({ title: broadcastForm.title.trim(), body: broadcastForm.body.trim(), href: broadcastForm.href.trim() || "/" });
+  const submitBroadcast = () => broadcastNotification.mutate(normalizeBroadcastPayload(broadcastForm));
   const isSaving = saveProduct.isPending || updateProduct.isPending;
   const isSavingBundle = saveBundle.isPending || updateBundle.isPending;
   const tabClass = (tab: typeof activeTab) => `rounded-full px-4 py-2.5 text-[10px] font-bold tracking-[0.1em] ${activeTab === tab ? "gradient-cta text-black" : "border border-white/13 text-white/70"}`;

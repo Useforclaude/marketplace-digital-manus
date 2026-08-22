@@ -77,7 +77,7 @@ Stripe ยืนยันการชำระเงินผ่าน webhook �
 | `client/src/pages/homeContent.ts` | hero asset, headline alternatives และ copy/structure ของ social proof | เก็บ URL hero, `HERO_HEADLINE_OPTIONS` และ social-proof disclosure ให้เป็น pure content ที่ test ได้; ห้ามใส่ชื่อ, คำพูด, rating, outcome metric หรือข้อมูลตัวอย่างที่อาจถูกมองเป็นรีวิวจริง |
 | `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิก, form ส่ง feedback และ preferences | รับ feedback เฉพาะจากสินค้าที่ซื้อ; ต้องติ๊ก consent ก่อนส่ง; สิ่งที่ผู้ใช้ส่งใหม่กลับสู่ `pending` เสมอ; preferences อัปเดตได้เฉพาะ current user |
 | `client/src/hooks/useScrollReveal.ts` | scroll-reveal behavior | เพิ่ม `.is-visible` เมื่อ block เข้าสู่ viewport; reduced-motion และ browser ที่ไม่มี observer จะเห็นเนื้อหาทันที |
-| `client/src/pages/Admin.tsx` | หลังบ้านสินค้าและคำสั่งซื้อ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง |
+| `client/src/pages/Admin.tsx` | หลังบ้านสินค้า Bundle คำสั่งซื้อ และประกาศ | UI ไม่ใช่ security boundary; server `adminProcedure` คือ boundary จริง; รองรับ `?tab=bundles` และ `?tab=notifications` สำหรับเปิด surface ที่เกี่ยวข้องโดยตรง |
 | `client/src/pages/Library.tsx` | คลังส่วนตัว | แสดงเฉพาะ entitlement ของ current user |
 | `client/src/pages/MemberDashboard.tsx` | Dashboard สมาชิก | รวมคลัง, ปุ่มเปิดอ่าน/เรียน, summary และประวัติ entitlement โดยไม่รับ content จาก public catalog |
 | `client/src/pages/memberDashboardUtils.ts` | สรุปจำนวน eBook/คอร์ส | เป็น pure utility ที่มี unit test; รักษา behavior empty state และ count ให้ถูกต้อง |
@@ -251,7 +251,7 @@ Stripe sandbox ของโปรเจกต์ต้องถูก claim ก�
 
 ## 13. Verified Before This Handoff
 
-ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **53 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Bundle server-side price/entitlement expansion, Stripe fulfillment, member-only reader, admin RBAC และ Bundle validation, notification ownership/preferences, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC, strategy hero content, role-aware CTA policy, redirect notice policy, UI-level StoreHeader/Hero CTA และ mobile drawer สำหรับ visitor/user/member/admin และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
+ณ รอบการส่งต่องานนี้ `pnpm test` ผ่าน **60 tests**, `pnpm check` ผ่าน และ `pnpm build` สำเร็จแล้ว ครอบคลุม cart, checkout DB price guard, Bundle server-side price/entitlement expansion, Stripe fulfillment, member-only reader, admin RBAC และ Bundle validation/selection/edit state, notification ownership/preferences และ interaction payloads, rendered product/reader deep links, Admin Bundle/Broadcast UI surfaces, storefront Bundle card, malformed content/upload rejection, rate limit, public-content boundary, scroll-reveal fallback, IntersectionObserver reveal/cleanup, Dashboard summary, social-proof disclosure, testimonial consent/ownership/moderation RBAC, strategy hero content, role-aware CTA policy, redirect notice policy, UI-level StoreHeader/Hero CTA และ mobile drawer สำหรับ visitor/user/member/admin และ component-level Dashboard states หน้าร้านและ Dashboard ได้รับการตรวจบน desktop/mobile; Managed Preview ได้รับการยืนยันด้วย development CSP allowlist และ HTTP response 200 แล้ว
 
 ## References
 

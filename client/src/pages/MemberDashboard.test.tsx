@@ -46,7 +46,7 @@ vi.mock("@/hooks/useScrollReveal", () => ({ useScrollReveal: () => undefined }))
 vi.mock("@/components/StoreHeader", () => ({ StoreHeader: () => <header>Store header</header> }));
 vi.mock("wouter", () => ({ Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => <a href={href} {...props}>{children}</a> }));
 
-import MemberDashboard from "./MemberDashboard";
+import MemberDashboard, { buildNotificationPreferenceUpdate } from "./MemberDashboard";
 
 const ebook = {
   product: {
@@ -87,6 +87,11 @@ describe("MemberDashboard", () => {
 
     expect(html).toContain("พื้นที่นี้พร้อมรอสิ่งแรกของคุณ");
     expect(html).toContain('href="/#editions"');
+    expect(html).toContain("การแจ้งเตือนของคุณ");
+    expect(html).toContain("สินค้าและ Bundle ใหม่");
+    expect(html).toContain("ยืนยันสิทธิ์การซื้อ");
+    expect((html.match(/role="switch"/g) ?? [])).toHaveLength(3);
+    expect((html.match(/checked=""/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
 
   it("renders purchased content, purchase history, and direct eBook/course actions", () => {
@@ -102,5 +107,12 @@ describe("MemberDashboard", () => {
     expect(html).toContain("เรียนต่อ");
     expect(html).toContain("เสียงจากผู้เรียนจริง");
     expect(html).toContain("ส่งให้ทีมตรวจสอบ");
+  });
+
+  it("builds the correct toggle payload for product, purchase, and system preferences", () => {
+    const current = { productEnabled: true, purchaseEnabled: true, systemEnabled: true };
+    expect(buildNotificationPreferenceUpdate(current, "productEnabled", false)).toEqual({ productEnabled: false, purchaseEnabled: true, systemEnabled: true });
+    expect(buildNotificationPreferenceUpdate(current, "purchaseEnabled", false)).toEqual({ productEnabled: true, purchaseEnabled: false, systemEnabled: true });
+    expect(buildNotificationPreferenceUpdate(current, "systemEnabled", false)).toEqual({ productEnabled: true, purchaseEnabled: true, systemEnabled: false });
   });
 });

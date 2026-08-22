@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./db", () => ({
-  createBundle: vi.fn(), createStoreProduct: vi.fn(), createOrUpdateTestimonial: vi.fn(), getProductBySlug: vi.fn(), getProductsBySlugs: vi.fn(), getTestimonialById: vi.fn(), hasProductAccess: vi.fn(), listAdminBundles: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listAdminTestimonials: vi.fn(), listApprovedTestimonials: vi.fn(), listPublishedBundles: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), listUserTestimonials: vi.fn(), updateBundle: vi.fn(), updateStoreProduct: vi.fn(), updateTestimonialStatus: vi.fn(),
+  createBundle: vi.fn(), createNotificationsForAllUsers: vi.fn(), createStoreProduct: vi.fn(), createOrUpdateTestimonial: vi.fn(), getProductBySlug: vi.fn(), getProductsBySlugs: vi.fn(), getTestimonialById: vi.fn(), hasProductAccess: vi.fn(), listAdminBundles: vi.fn(), listAdminOrders: vi.fn(), listAdminProducts: vi.fn(), listAdminTestimonials: vi.fn(), listApprovedTestimonials: vi.fn(), listPublishedBundles: vi.fn(), listPublishedProducts: vi.fn(), listUserPurchases: vi.fn(), listUserTestimonials: vi.fn(), updateBundle: vi.fn(), updateStoreProduct: vi.fn(), updateTestimonialStatus: vi.fn(),
 }));
 vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 
-import { createBundle, createStoreProduct, getProductsBySlugs } from "./db";
+import { createBundle, createNotificationsForAllUsers, createStoreProduct, getProductsBySlugs } from "./db";
 import { appRouter } from "./routers";
 
 const mockCreate = vi.mocked(createStoreProduct);
@@ -53,5 +53,16 @@ describe("administrator product controls", () => {
   it("rejects a Bundle when one requested product is absent from the trusted catalog", async () => {
     mockBundleProducts.mockResolvedValue([{ ...validProduct, slug: "atlas-of-attention" }] as never);
     await expect(caller("admin").admin.createBundle(validBundle)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("emits product-specific storefront deep links when a product or Bundle is published", async () => {
+    mockCreate.mockResolvedValue({ ...validProduct, status: "published", id: 1, createdBy: 22, createdAt: new Date(), updatedAt: new Date() } as never);
+    await caller("admin").admin.createProduct({ ...validProduct, status: "published" });
+    expect(createNotificationsForAllUsers).toHaveBeenCalledWith(expect.objectContaining({ kind: "product", href: "/#product-thai-test-product" }));
+
+    mockBundleProducts.mockResolvedValue([{ ...validProduct, slug: "atlas-of-attention", status: "published" }, { ...validProduct, slug: "decision-playbook", status: "published" }] as never);
+    mockCreateBundle.mockResolvedValue({ ...validBundle, status: "published", productType: "bundle", accent: "lime", unitCount: 2, durationLabel: "2 รายการ", includedProductIds: validBundle.productIds } as never);
+    await caller("admin").admin.createBundle({ ...validBundle, status: "published" });
+    expect(createNotificationsForAllUsers).toHaveBeenCalledWith(expect.objectContaining({ kind: "product", href: "/#product-focus-foundation" }));
   });
 });
