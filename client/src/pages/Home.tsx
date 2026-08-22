@@ -1,12 +1,14 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { StoreHeader } from "@/components/StoreHeader";
+import { getStorefrontExperience } from "@/components/storefrontAccess";
+import { StorefrontHeroActions } from "@/components/StorefrontHeroActions";
 import { startLogin } from "@/const";
 import { useCart } from "@/contexts/CartContext";
 import { formatCurrency, formatProductType } from "@/data/catalog";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { trpc } from "@/lib/trpc";
 import { ACTIVE_HERO_HEADLINE, HOME_HERO_IMAGE, SOCIAL_PROOF } from "@/pages/homeContent";
-import { ArrowDownRight, ArrowUpRight, BadgeCheck, Check, ChevronRight, MessageSquareQuote, Minus, Plus, ShieldCheck, ShoppingBag, Sparkles, X, Zap } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BadgeCheck, Check, MessageSquareQuote, Minus, Plus, ShieldCheck, ShoppingBag, Sparkles, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -15,7 +17,10 @@ export default function Home() {
   const catalog = trpc.catalog.list.useQuery();
   const approvedTestimonials = trpc.testimonials.listApproved.useQuery();
   const { addItem, itemCount, items, removeItem, setQuantity, subtotal, clearCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const memberLibrary = trpc.library.list.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role !== "admin",
+  });
   const checkout = trpc.commerce.createCheckoutSession.useMutation({
     onSuccess: ({ url }) => {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -27,6 +32,11 @@ export default function Home() {
 
   const products = catalog.data ?? [];
   const learnerProof = approvedTestimonials.data ?? [];
+  const storefrontExperience = getStorefrontExperience({
+    isAuthenticated,
+    role: user?.role,
+    ownedItemCount: memberLibrary.data?.length ?? 0,
+  });
   useScrollReveal(products.length);
   const addToCart = (slug: string) => {
     addItem(slug);
@@ -55,7 +65,7 @@ export default function Home() {
             <div className="mb-7 flex items-center gap-3"><span className="h-px w-9 bg-[#d5ff45]" /><span className="eyebrow text-[#d5ff45]">{ACTIVE_HERO_HEADLINE.eyebrow}</span></div>
             <h1 className="font-display max-w-3xl text-[clamp(3.45rem,7.6vw,7.5rem)] font-semibold leading-[0.9] tracking-[-0.065em] text-white">{ACTIVE_HERO_HEADLINE.lead}<br /><em className="text-[#d5ff45]">{ACTIVE_HERO_HEADLINE.highlight}</em></h1>
             <p className="mt-8 max-w-xl text-base leading-7 text-white/72 sm:text-lg">{ACTIVE_HERO_HEADLINE.description}</p>
-            <div className="mt-10 flex flex-wrap items-center gap-3"><a href="#editions" className="gradient-cta group inline-flex items-center gap-3 rounded-full px-6 py-3.5 text-[11px] font-extrabold tracking-[0.12em] text-black">หาบันไดขั้นแรกของคุณ <ArrowDownRight size={15} className="transition-transform group-hover:translate-y-0.5 group-hover:translate-x-0.5" /></a><a href="#membership" className="inline-flex items-center gap-2 rounded-full border border-white/16 bg-black/20 px-5 py-3.5 text-[11px] font-bold tracking-[0.1em] text-white/88 backdrop-blur-sm transition-colors hover:border-white/40 hover:text-white">ดูเส้นทางที่คุณจะได้ <ChevronRight size={14} /></a></div>
+            <StorefrontHeroActions experience={storefrontExperience} onVisitorStart={startLogin} />
             <div className="mt-16 grid max-w-md grid-cols-3 border-t border-white/15 pt-5 text-white/64"><div><div className="font-display text-2xl text-white">{products.length || "—"}</div><div className="mt-1 text-[9px] font-semibold tracking-[0.12em]">บันไดให้เลือก</div></div><div><div className="font-display text-2xl text-white">eBook +</div><div className="mt-1 text-[9px] font-semibold tracking-[0.12em]">คอร์สใช้จริง</div></div><div><div className="font-display text-2xl text-white">∞</div><div className="mt-1 text-[9px] font-semibold tracking-[0.12em]">กลับมาเรียนต่อ</div></div></div>
           </div>
         </div>

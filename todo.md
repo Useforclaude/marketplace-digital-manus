@@ -70,3 +70,10 @@
 - [x] Verify desktop/mobile composition, update handoff, then commit and push the new hero direction.
 - [x] Create and integrate a cinematic strategy-board hero using original human figurine chess pieces for CEO, Marketing, Programmer, Finance, and Sales roles.
 - [x] Verify the role labels, low-angle composition, and Thai copy on desktop/mobile; update handoff, then commit and push the feature branch update.
+- [x] Replace storefront CTA copy with strategy-board language, including “เลือกหมากตัวแรกของคุณ”.
+- [x] Implement role-aware storefront navigation and CTA states for visitors, signed-in members, standard users, and admins.
+- [x] Hide admin routes and controls from non-admin UI while retaining server-side admin RBAC enforcement.
+- [x] Add tests for role-aware header/CTA behavior, verify responsive states, update handoff, then commit and push the branch update.
+- [x] Update remaining storefront CTA labels to use consistent strategy-board language beyond the hero.
+- [x] Add UI-level coverage for visitor, user, member, and admin storefront navigation/CTA rendering.
+- [x] Verify responsive role-aware states, commit, and push the finalized access-aware storefront update.

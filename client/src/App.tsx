@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/_core/hooks/useAuth";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -11,15 +12,31 @@ import MemberDashboard from "./pages/MemberDashboard";
 import Reader from "./pages/Reader";
 import Admin from "./pages/Admin";
 
+function AdminRoute() {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] text-sm text-white/50">กำลังตรวจสอบสิทธิ์…</div>;
+  if (!isAuthenticated) return <Redirect to="/" />;
+  if (user?.role !== "admin") return <Redirect to="/dashboard" />;
+  return <Admin />;
+}
+
+function MemberRoute() {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#0a0b0d] text-sm text-white/50">กำลังตรวจสอบสิทธิ์…</div>;
+  if (!isAuthenticated) return <Redirect to="/" />;
+  if (user?.role === "admin") return <Redirect to="/admin" />;
+  return <MemberDashboard />;
+}
+
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path={"/library"} component={Library} />
-      <Route path={"/dashboard"} component={MemberDashboard} />
+      <Route path={"/library"} component={MemberRoute} />
+      <Route path={"/dashboard"} component={MemberRoute} />
       <Route path={"/read/:productId"} component={Reader} />
-      <Route path={"/admin"} component={Admin} />
+      <Route path={"/admin"} component={AdminRoute} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
