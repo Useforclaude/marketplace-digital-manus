@@ -4,6 +4,7 @@ vi.mock("./db", () => ({
   createStoreProduct: vi.fn(),
   createNotificationsForAllUsers: vi.fn(),
   createOrUpdateTestimonial: vi.fn(),
+  getNotificationPreferences: vi.fn(),
   getProductBySlug: vi.fn(),
   getTestimonialById: vi.fn(),
   hasProductAccess: vi.fn(),
@@ -18,11 +19,12 @@ vi.mock("./db", () => ({
   markAllNotificationsRead: vi.fn(),
   markNotificationRead: vi.fn(),
   updateStoreProduct: vi.fn(),
+  updateNotificationPreferences: vi.fn(),
   updateTestimonialStatus: vi.fn(),
 }));
 vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 
-import { createNotificationsForAllUsers, listUserNotifications, markAllNotificationsRead, markNotificationRead } from "./db";
+import { createNotificationsForAllUsers, getNotificationPreferences, listUserNotifications, markAllNotificationsRead, markNotificationRead, updateNotificationPreferences } from "./db";
 import { appRouter } from "./routers";
 
 function caller(role: "admin" | "user", id = 41) {
@@ -46,5 +48,14 @@ describe("notification ownership and delivery", () => {
     await expect(caller("user").admin.broadcastNotification({ title: "ระบบอัปเดต", body: "รายละเอียด", href: "/" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await caller("admin").admin.broadcastNotification({ title: "ระบบอัปเดต", body: "รายละเอียด", href: "/" });
     expect(createNotificationsForAllUsers).toHaveBeenCalledWith({ kind: "system", title: "ระบบอัปเดต", body: "รายละเอียด", href: "/" });
+  });
+
+  it("reads and writes notification preferences only for the signed-in member", async () => {
+    vi.mocked(getNotificationPreferences).mockResolvedValue({ productEnabled: false, purchaseEnabled: true, systemEnabled: false } as never);
+    const result = await caller("user", 88).notifications.preferences();
+    await caller("user", 88).notifications.updatePreferences({ productEnabled: true, purchaseEnabled: false, systemEnabled: true });
+    expect(result).toEqual({ productEnabled: false, purchaseEnabled: true, systemEnabled: false });
+    expect(getNotificationPreferences).toHaveBeenCalledWith(88);
+    expect(updateNotificationPreferences).toHaveBeenCalledWith({ userId: 88, productEnabled: true, purchaseEnabled: false, systemEnabled: true });
   });
 });

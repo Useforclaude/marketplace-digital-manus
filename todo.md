@@ -86,3 +86,12 @@
 - [x] Add a Header notification bell with unread badge, notification panel, and read-all interaction.
 - [x] Add real notifications for published digital products and system/account updates without fabricating user messages.
 - [x] Add tests, verify desktop/mobile interactions, update handoff, then commit and push the notification update.
+- [x] Add per-user notification preferences for product, purchase, and system update categories with server-side recipient filtering.
+- [x] Add an admin broadcast composer for sending a validated system notification to opted-in users.
+- [x] Add an account notification-settings surface for users to manage their own notification categories.
+- [x] Extend notification deep links to navigate to related product details or purchased reader content safely.
+- [ ] Add tests, verify desktop/mobile interactions, update handoff, then commit and push the broadcast/preferences/deep-link update.
+- [x] Add bundle and bundle-item data models so admins can compose products into a priced package.
+- [x] Add admin bundle management with product selection, package pricing, publish status, and validation.
+- [x] Extend catalog, cart, Stripe checkout, webhook fulfillment, and library entitlements so a purchased bundle unlocks every included product.
+- [ ] Add tests for bundle authorization, server-side pricing, and entitlement expansion; verify UI, update handoff, then commit and push.

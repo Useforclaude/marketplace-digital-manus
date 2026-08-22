@@ -43,6 +43,20 @@
       "when": 1787365213686,
       "tag": "0005_aspiring_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787365830777,
+      "tag": "0006_damp_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787366091931,
+      "tag": "0007_silly_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

@@ -6,22 +6,29 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
+  createBundle,
   createStoreProduct,
   createNotificationsForAllUsers,
   createOrUpdateTestimonial,
   getProductBySlug,
+  getProductsBySlugs,
+  getNotificationPreferences,
   getTestimonialById,
   hasProductAccess,
   listAdminOrders,
   listAdminProducts,
+  listAdminBundles,
   listAdminTestimonials,
   listApprovedTestimonials,
   listPublishedProducts,
+  listPublishedBundles,
   listUserNotifications,
   listUserPurchases,
   listUserTestimonials,
   updateTestimonialStatus,
   updateStoreProduct,
+  updateBundle,
+  updateNotificationPreferences,
   markAllNotificationsRead,
   markNotificationRead,
 } from "./db";
@@ -81,6 +88,27 @@ const notificationBroadcastInput = z.object({
   href: z.string().trim().regex(/^\/(?!\/)/, "ลิงก์แจ้งเตือนต้องเป็น path ภายในเว็บไซต์").max(512),
 });
 
+const bundleInput = z.object({
+  slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug ต้องใช้ a-z, 0-9 และขีดกลางเท่านั้น").max(96),
+  status: z.enum(["draft", "published", "archived"]),
+  title: z.string().trim().min(2).max(220),
+  subtitle: z.string().trim().max(255).nullable(),
+  description: z.string().trim().min(10).max(5000),
+  category: z.string().trim().min(2).max(120),
+  coverUrl: z.string().trim().regex(/^(\/manus-storage\/|https:\/\/)/, "URL รูปปกไม่ถูกต้อง").max(1024),
+  priceSatang: z.number().int().min(500, "ราคาต้องไม่น้อยกว่า 5 บาท").max(100000000),
+  currency: z.literal("thb"),
+  productIds: z.array(z.string().trim().min(1).max(96)).min(2, "Bundle ต้องมีอย่างน้อย 2 สินค้า").max(40),
+}).superRefine((value, ctx) => {
+  if (new Set(value.productIds).size !== value.productIds.length) ctx.addIssue({ code: "custom", message: "ไม่สามารถใส่สินค้าเดิมซ้ำใน Bundle", path: ["productIds"] });
+});
+
+async function validateBundleProducts(input: z.infer<typeof bundleInput>) {
+  const products = await getProductsBySlugs(input.productIds);
+  if (products.length !== input.productIds.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Bundle มีสินค้าที่ไม่พบในระบบ" });
+  if (input.status === "published" && products.some((product) => product.status !== "published")) throw new TRPCError({ code: "BAD_REQUEST", message: "Bundle ที่เผยแพร่ต้องมีเฉพาะสินค้าที่เผยแพร่แล้ว" });
+}
+
 function getCoverUpload(dataUrl: string) {
   const match = /^data:(image\/(?:png|jpeg|webp));base64,([a-zA-Z0-9+/=]+)$/.exec(dataUrl);
   if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "รองรับเฉพาะไฟล์ PNG, JPG และ WebP" });
@@ -105,7 +133,10 @@ export const appRouter = router({
     }),
   }),
   catalog: router({
-    list: publicProcedure.query(async () => (await listPublishedProducts()).map(toPublicProduct)),
+    list: publicProcedure.query(async () => {
+      const [products, bundles] = await Promise.all([listPublishedProducts(), listPublishedBundles()]);
+      return [...bundles, ...products.map(toPublicProduct)];
+    }),
   }),
   commerce: router({
     createCheckoutSession: protectedProcedure
@@ -153,16 +184,41 @@ export const appRouter = router({
   }),
   notifications: router({
     list: protectedProcedure.query(({ ctx }) => listUserNotifications(ctx.user.id)),
+    preferences: protectedProcedure.query(({ ctx }) => getNotificationPreferences(ctx.user.id)),
+    updatePreferences: protectedProcedure.input(z.object({ productEnabled: z.boolean(), purchaseEnabled: z.boolean(), systemEnabled: z.boolean() })).mutation(({ ctx, input }) => updateNotificationPreferences({ userId: ctx.user.id, ...input })),
     markRead: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => markNotificationRead({ userId: ctx.user.id, id: input.id })),
     markAllRead: protectedProcedure.mutation(({ ctx }) => markAllNotificationsRead(ctx.user.id)),
   }),
   admin: router({
     listProducts: adminProcedure.query(() => listAdminProducts()),
+    listBundles: adminProcedure.query(() => listAdminBundles()),
+    createBundle: adminProcedure.input(bundleInput).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-bundle", ctx.user.id, 20, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึก Bundle บ่อยเกินไป กรุณารอสักครู่" });
+      await validateBundleProducts(input);
+      try {
+        const bundle = await createBundle({ ...input, createdBy: ctx.user.id });
+        if (bundle?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีชุดใหม่บนกระดาน", body: bundle.title, href: `/#product-${bundle.slug}` });
+        return bundle;
+      } catch (error) {
+        console.error("[Admin] Failed to create bundle", error);
+        throw new TRPCError({ code: "CONFLICT", message: "ไม่สามารถสร้าง Bundle ได้ กรุณาตรวจสอบ slug" });
+      }
+    }),
+    updateBundle: adminProcedure.input(z.object({ slug: z.string().min(1), bundle: bundleInput })).mutation(async ({ ctx, input }) => {
+      if (!consumeRateLimit("admin-bundle", ctx.user.id, 20, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึก Bundle บ่อยเกินไป กรุณารอสักครู่" });
+      if (input.slug !== input.bundle.slug) throw new TRPCError({ code: "BAD_REQUEST", message: "ไม่อนุญาตให้เปลี่ยน slug ของ Bundle" });
+      await validateBundleProducts(input.bundle);
+      const existing = (await listAdminBundles()).find((bundle) => bundle.slug === input.slug);
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบ Bundle ที่ต้องการแก้ไข" });
+      const bundle = await updateBundle(input.slug, input.bundle);
+      if (existing.status !== "published" && bundle?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีชุดใหม่บนกระดาน", body: bundle.title, href: `/#product-${bundle.slug}` });
+      return bundle;
+    }),
     createProduct: adminProcedure.input(productInput).mutation(async ({ ctx, input }) => {
       if (!consumeRateLimit("admin-product", ctx.user.id, 30, 60_000)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "บันทึกข้อมูลบ่อยเกินไป กรุณารอสักครู่" });
       try {
         const product = await createStoreProduct({ ...input, createdBy: ctx.user.id });
-        if (product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: "/#editions" });
+        if (product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: `/#product-${product.slug}` });
         return product;
       } catch (error) {
         console.error("[Admin] Failed to create product", error);
@@ -175,7 +231,7 @@ export const appRouter = router({
       const existing = await getProductBySlug(input.slug);
       if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "ไม่พบสินค้าที่ต้องการแก้ไข" });
       const product = await updateStoreProduct(input.slug, input.product);
-      if (existing.status !== "published" && product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: "/#editions" });
+      if (existing.status !== "published" && product?.status === "published") await createNotificationsForAllUsers({ kind: "product", title: "มีหมากใหม่บนกระดาน", body: product.title, href: `/#product-${product.slug}` });
       return product;
     }),
     uploadCover: adminProcedure.input(coverUploadInput).mutation(async ({ ctx, input }) => {

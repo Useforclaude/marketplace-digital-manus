@@ -103,6 +103,42 @@ export const notifications = mysqlTable(
 
 export type Notification = typeof notifications.$inferSelect;
 
+/** User-controlled delivery choices. Absent row means all categories are enabled. */
+export const notificationPreferences = mysqlTable("notification_preferences", {
+  userId: int("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  productEnabled: boolean("productEnabled").default(true).notNull(),
+  purchaseEnabled: boolean("purchaseEnabled").default(true).notNull(),
+  systemEnabled: boolean("systemEnabled").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
+
+/** A sellable package. The contained products stay as the only reader entitlements. */
+export const bundles = mysqlTable("bundles", {
+  slug: varchar("slug", { length: 96 }).primaryKey(),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  title: varchar("title", { length: 220 }).notNull(),
+  subtitle: varchar("subtitle", { length: 255 }),
+  description: text("description").notNull(),
+  category: varchar("category", { length: 120 }).notNull(),
+  coverUrl: varchar("coverUrl", { length: 1024 }).notNull(),
+  priceSatang: int("priceSatang").notNull(),
+  currency: varchar("currency", { length: 3 }).default("thb").notNull(),
+  createdBy: int("createdBy").notNull().references(() => users.id, { onDelete: "restrict" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const bundleItems = mysqlTable("bundle_items", {
+  id: int("id").autoincrement().primaryKey(),
+  bundleSlug: varchar("bundleSlug", { length: 96 }).notNull().references(() => bundles.slug, { onDelete: "cascade" }),
+  productId: varchar("productId", { length: 96 }).notNull().references(() => storeProducts.slug, { onDelete: "restrict" }),
+}, (table) => [uniqueIndex("bundle_items_unique").on(table.bundleSlug, table.productId), index("bundle_items_product_index").on(table.productId)]);
+
+export type Bundle = typeof bundles.$inferSelect;
+export type BundleItem = typeof bundleItems.$inferSelect;
+
 /**
  * Learner feedback is collected only from members who own the referenced
  * product. It remains private until a moderator explicitly approves it after

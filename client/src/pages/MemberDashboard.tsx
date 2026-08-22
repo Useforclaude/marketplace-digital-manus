@@ -4,7 +4,7 @@ import { formatProductType } from "@/data/catalog";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { trpc } from "@/lib/trpc";
 import { getMemberDashboardStats, getMemberDashboardView } from "./memberDashboardUtils";
-import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, CheckCircle2, Clock3, GraduationCap, LayoutDashboard, LibraryBig, MessageSquareQuote, ReceiptText, Send, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BellRing, BookOpen, CalendarDays, CheckCircle2, Clock3, GraduationCap, LayoutDashboard, LibraryBig, MessageSquareQuote, ReceiptText, Send, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
@@ -25,6 +25,7 @@ export default function MemberDashboard() {
   const utils = trpc.useUtils();
   const purchases = trpc.library.list.useQuery(undefined, { enabled: isAuthenticated });
   const myTestimonials = trpc.testimonials.listMine.useQuery(undefined, { enabled: isAuthenticated });
+  const notificationPreferences = trpc.notifications.preferences.useQuery(undefined, { enabled: isAuthenticated });
   const library = purchases.data ?? [];
   const testimonialByProduct = new Map((myTestimonials.data ?? []).map((testimonial) => [testimonial.productId, testimonial]));
   const stats = getMemberDashboardStats(library);
@@ -38,6 +39,14 @@ export default function MemberDashboard() {
     },
     onError: (error) => toast.error("ยังส่งเสียงสะท้อนไม่ได้", { description: error.message }),
   });
+  const updateNotificationPreferences = trpc.notifications.updatePreferences.useMutation({
+    onSuccess: async () => { await utils.notifications.preferences.invalidate(); toast.success("บันทึกการตั้งค่าการแจ้งเตือนแล้ว"); },
+    onError: (error) => toast.error("บันทึกการตั้งค่าไม่สำเร็จ", { description: error.message }),
+  });
+  const setNotificationPreference = (key: "productEnabled" | "purchaseEnabled" | "systemEnabled", value: boolean) => {
+    const current = notificationPreferences.data;
+    updateNotificationPreferences.mutate({ productEnabled: current?.productEnabled ?? true, purchaseEnabled: current?.purchaseEnabled ?? true, systemEnabled: current?.systemEnabled ?? true, [key]: value });
+  };
   useScrollReveal(library.length);
 
   return (
@@ -93,6 +102,10 @@ export default function MemberDashboard() {
         ) : (
           <section className="reveal mt-14 grid min-h-95 place-items-center rounded-[2rem] border border-dashed border-white/13 bg-white/[.018] p-8 text-center"><div><Sparkles className="mx-auto text-[#d5ff45]" size={30} /><h2 className="font-display mt-5 text-4xl tracking-[-.05em]">พื้นที่นี้พร้อมรอสิ่งแรกของคุณ</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/54">เลือกหนึ่งเรื่องที่ตรงกับงานตอนนี้ เมื่อชำระเงินสำเร็จ เนื้อหาจะเข้ามาอยู่ใน Dashboard ทันที</p><Link href="/#editions" className="lime-cta mt-7 inline-flex items-center gap-2 rounded-full px-5 py-3 text-[10px] font-extrabold tracking-[.12em] text-black">เลือกดูสินค้า <ArrowRight size={14} /></Link></div></section>
         )}
+
+        <section className="reveal mt-14 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.022] p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-center"><div><div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#d5ff45] text-black"><BellRing size={18} /></div><div className="eyebrow mt-5 text-[#d5ff45]">การแจ้งเตือนของคุณ</div><h2 className="font-display mt-3 text-4xl leading-[.95] tracking-[-.055em]">เลือกรับเฉพาะ<br /><em className="text-white/46">เรื่องที่สำคัญกับคุณ</em></h2><p className="mt-5 max-w-md text-sm leading-6 text-white/57">การปิดประเภทใดจะหยุดการสร้างข้อความแจ้งเตือนใหม่ในประเภทนั้น แต่ไม่กระทบสิทธิ์หรือการเข้าถึงสิ่งที่คุณซื้อแล้ว</p></div><div className="space-y-3">{([{ key: "productEnabled", title: "สินค้าและ Bundle ใหม่", body: "รับข่าวเมื่อมี eBook, คอร์ส หรือชุดความรู้ที่เผยแพร่ใหม่" }, { key: "purchaseEnabled", title: "ยืนยันสิทธิ์การซื้อ", body: "รับข้อความเมื่อระบบปลดล็อกสิทธิ์หลังชำระเงินสำเร็จ" }, { key: "systemEnabled", title: "ประกาศจาก Brightline", body: "รับประกาศระบบหรือข้อมูลสำคัญจากผู้ดูแล" }] as const).map((item) => { const enabled = notificationPreferences.data?.[item.key] ?? true; return <label key={item.key} className="flex cursor-pointer items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-white/24"><input type="checkbox" role="switch" checked={enabled} disabled={notificationPreferences.isLoading || updateNotificationPreferences.isPending} onChange={(event) => setNotificationPreference(item.key, event.target.checked)} className="peer sr-only" /><span aria-hidden="true" className="relative h-6 w-11 shrink-0 rounded-full bg-white/15 transition peer-checked:bg-[#d5ff45] peer-disabled:opacity-50 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-[#0a0d0c]" /><span className="min-w-0"><span className="block text-sm font-bold text-white">{item.title}</span><span className="mt-1 block text-xs leading-5 text-white/48">{item.body}</span></span></label>; })}</div></div>
+        </section>
 
         <section className="reveal mt-14 grid gap-4 border-t border-white/10 pt-7 text-xs text-white/42 sm:grid-cols-2"><div className="flex gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-[#d5ff45]" size={15} /><p>สิทธิ์การอ่านและเรียนตรวจจากฝั่ง server ทุกครั้ง การแก้หน้าจอใน browser ไม่สามารถเพิ่มสิทธิ์ให้บัญชีได้</p></div><div className="flex gap-3"><ShoppingBag className="mt-0.5 shrink-0 text-[#d5ff45]" size={15} /><p>กำลังมองหาเรื่องใหม่อยู่หรือเปล่า? เลือกเพิ่มได้ทุกเมื่อ แล้วทุกอย่างจะอยู่ในที่เดียวกัน</p><Link href="/#editions" className="ml-auto inline-flex shrink-0 items-center gap-1 font-bold text-[#d5ff45]">ดูสินค้า <ArrowUpRight size={13} /></Link></div></section>
       </main>

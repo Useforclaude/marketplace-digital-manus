@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import type { SellableProduct } from "@shared/products";
 import { addCartLine, getCartSummary, setCartLineQuantity, type CartLine } from "./cartUtils";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
@@ -40,7 +41,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [lines]);
 
   const value = useMemo<CartContextValue>(() => {
-    const { items, itemCount, subtotal } = getCartSummary(lines, catalog.data ?? []);
+    const { items, itemCount, subtotal } = getCartSummary(lines, (catalog.data ?? []) as SellableProduct[]);
 
     return {
       lines,

@@ -2,13 +2,25 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { formatCurrency } from "@/data/catalog";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, EyeOff, Loader2, MessageSquareQuote, PackagePlus, Save, Send, ShieldCheck, Upload, X } from "lucide-react";
+import { BellRing, Boxes, CheckCircle2, EyeOff, Loader2, MessageSquareQuote, PackagePlus, Save, Send, ShieldCheck, Upload, X } from "lucide-react";
 import { ChangeEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type ProductKind = "ebook" | "course";
 type ProductStatus = "draft" | "published" | "archived";
 type TestimonialStatus = "pending" | "approved" | "hidden" | "rejected";
+
+type BundleForm = {
+  slug: string;
+  status: ProductStatus;
+  title: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  coverUrl: string;
+  priceBaht: string;
+  productIds: string[];
+};
 
 type ProductForm = {
   slug: string;
@@ -34,6 +46,10 @@ const emptyForm = (productType: ProductKind = "ebook"): ProductForm => ({
   slug: "", productType, status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", coverKey: "", accent: "lime", priceBaht: "", unitCount: "1", durationLabel: "", content: productType === "ebook" ? ebookTemplate : courseTemplate,
 });
 
+const emptyBundleForm = (): BundleForm => ({
+  slug: "", status: "draft", title: "", subtitle: "", description: "", category: "", coverUrl: "", priceBaht: "", productIds: [],
+});
+
 function recordToForm(product: { slug: string; productType: ProductKind; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; coverKey: string | null; accent: ProductForm["accent"]; priceSatang: number; unitCount: number; durationLabel: string; content: string }): ProductForm {
   return {
     slug: product.slug,
@@ -53,6 +69,20 @@ function recordToForm(product: { slug: string; productType: ProductKind; status:
   };
 }
 
+function bundleRecordToForm(bundle: { slug: string; status: ProductStatus; title: string; subtitle: string | null; description: string; category: string; coverUrl: string; priceSatang: number; includedProductIds: string[] }): BundleForm {
+  return {
+    slug: bundle.slug,
+    status: bundle.status,
+    title: bundle.title,
+    subtitle: bundle.subtitle ?? "",
+    description: bundle.description,
+    category: bundle.category,
+    coverUrl: bundle.coverUrl,
+    priceBaht: String(bundle.priceSatang / 100),
+    productIds: bundle.includedProductIds,
+  };
+}
+
 function TestimonialStatusBadge({ status }: { status: TestimonialStatus }) {
   const details = status === "approved"
     ? { label: "อนุมัติแล้ว", className: "bg-[#d5ff45]/14 text-[#d5ff45]", icon: <CheckCircle2 size={11} /> }
@@ -68,13 +98,18 @@ export default function Admin() {
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const utils = trpc.useUtils();
   const products = trpc.admin.listProducts.useQuery(undefined, { enabled: user?.role === "admin" });
+  const bundles = trpc.admin.listBundles.useQuery(undefined, { enabled: user?.role === "admin" });
   const orders = trpc.admin.listOrders.useQuery(undefined, { enabled: user?.role === "admin" });
   const testimonials = trpc.admin.listTestimonials.useQuery(undefined, { enabled: user?.role === "admin" });
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "testimonials">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "bundles" | "orders" | "testimonials" | "notifications">("products");
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(() => emptyForm());
+  const [editingBundleSlug, setEditingBundleSlug] = useState<string | null>(null);
+  const [bundleForm, setBundleForm] = useState<BundleForm>(() => emptyBundleForm());
+  const [broadcastForm, setBroadcastForm] = useState({ title: "", body: "", href: "/" });
 
   const productMap = useMemo(() => new Map((products.data ?? []).map((product) => [product.slug, product])), [products.data]);
+  const bundleMap = useMemo(() => new Map((bundles.data ?? []).map((bundle) => [bundle.slug, bundle])), [bundles.data]);
   const saveProduct = trpc.admin.createProduct.useMutation({
     onSuccess: async () => { await utils.admin.listProducts.invalidate(); setEditingSlug(null); setForm(emptyForm()); toast.success("บันทึกสินค้าแล้ว"); },
     onError: (error) => toast.error("บันทึกสินค้าไม่สำเร็จ", { description: error.message }),
@@ -87,6 +122,22 @@ export default function Admin() {
     onSuccess: ({ url, key }) => { setForm((current) => ({ ...current, coverUrl: url, coverKey: key })); toast.success("อัปโหลดรูปปกแล้ว"); },
     onError: (error) => toast.error("อัปโหลดรูปปกไม่สำเร็จ", { description: error.message }),
   });
+  const uploadBundleCover = trpc.admin.uploadCover.useMutation({
+    onSuccess: ({ url }) => { setBundleForm((current) => ({ ...current, coverUrl: url })); toast.success("อัปโหลดรูปปก Bundle แล้ว"); },
+    onError: (error) => toast.error("อัปโหลดรูปปกไม่สำเร็จ", { description: error.message }),
+  });
+  const saveBundle = trpc.admin.createBundle.useMutation({
+    onSuccess: async () => { await utils.admin.listBundles.invalidate(); await utils.catalog.list.invalidate(); setEditingBundleSlug(null); setBundleForm(emptyBundleForm()); toast.success("บันทึก Bundle แล้ว"); },
+    onError: (error) => toast.error("บันทึก Bundle ไม่สำเร็จ", { description: error.message }),
+  });
+  const updateBundle = trpc.admin.updateBundle.useMutation({
+    onSuccess: async () => { await utils.admin.listBundles.invalidate(); await utils.catalog.list.invalidate(); toast.success("อัปเดต Bundle แล้ว"); },
+    onError: (error) => toast.error("อัปเดต Bundle ไม่สำเร็จ", { description: error.message }),
+  });
+  const broadcastNotification = trpc.admin.broadcastNotification.useMutation({
+    onSuccess: () => { setBroadcastForm({ title: "", body: "", href: "/" }); toast.success("ส่งประกาศไปยังผู้ใช้ที่เลือกเปิดรับแล้ว"); },
+    onError: (error) => toast.error("ส่งประกาศไม่สำเร็จ", { description: error.message }),
+  });
   const updateTestimonialStatus = trpc.admin.updateTestimonialStatus.useMutation({
     onSuccess: async (_, variables) => {
       await utils.admin.listTestimonials.invalidate();
@@ -97,6 +148,7 @@ export default function Admin() {
   });
 
   const patch = (value: Partial<ProductForm>) => setForm((current) => ({ ...current, ...value }));
+  const patchBundle = (value: Partial<BundleForm>) => setBundleForm((current) => ({ ...current, ...value }));
   const handleCoverFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -107,6 +159,18 @@ export default function Admin() {
     }
     const reader = new FileReader();
     reader.onload = () => uploadCover.mutate({ dataUrl: String(reader.result), filename: file.name });
+    reader.readAsDataURL(file);
+  };
+  const handleBundleCoverFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/image\/(png|jpeg|webp)/.test(file.type) || file.size > 3 * 1024 * 1024) {
+      toast.error("ใช้ได้เฉพาะ PNG, JPG หรือ WebP ขนาดไม่เกิน 3 MB");
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => uploadBundleCover.mutate({ dataUrl: String(reader.result), filename: file.name });
     reader.readAsDataURL(file);
   };
   const submit = () => {
@@ -125,7 +189,28 @@ export default function Admin() {
     setForm(recordToForm(product));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const submitBundle = () => {
+    const payload = {
+      slug: bundleForm.slug.trim(), status: bundleForm.status, title: bundleForm.title.trim(), subtitle: bundleForm.subtitle.trim() || null,
+      description: bundleForm.description.trim(), category: bundleForm.category.trim(), coverUrl: bundleForm.coverUrl.trim(),
+      priceSatang: Math.round(Number(bundleForm.priceBaht) * 100), currency: "thb" as const, productIds: bundleForm.productIds,
+    };
+    if (editingBundleSlug) updateBundle.mutate({ slug: editingBundleSlug, bundle: payload });
+    else saveBundle.mutate(payload);
+  };
+  const openBundleEdit = (slug: string) => {
+    const bundle = bundleMap.get(slug);
+    if (!bundle) return;
+    setEditingBundleSlug(slug);
+    setBundleForm(bundleRecordToForm(bundle));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const toggleBundleProduct = (productId: string) => {
+    setBundleForm((current) => ({ ...current, productIds: current.productIds.includes(productId) ? current.productIds.filter((id) => id !== productId) : [...current.productIds, productId] }));
+  };
+  const submitBroadcast = () => broadcastNotification.mutate({ title: broadcastForm.title.trim(), body: broadcastForm.body.trim(), href: broadcastForm.href.trim() || "/" });
   const isSaving = saveProduct.isPending || updateProduct.isPending;
+  const isSavingBundle = saveBundle.isPending || updateBundle.isPending;
   const tabClass = (tab: typeof activeTab) => `rounded-full px-4 py-2.5 text-[10px] font-bold tracking-[0.1em] ${activeTab === tab ? "gradient-cta text-black" : "border border-white/13 text-white/70"}`;
 
   return (
@@ -140,8 +225,10 @@ export default function Admin() {
             </div>
             <nav className="flex flex-wrap gap-2" aria-label="เมนูจัดการร้าน">
               <button type="button" onClick={() => setActiveTab("products")} className={tabClass("products")}>สินค้า</button>
+              <button type="button" onClick={() => setActiveTab("bundles")} className={`${tabClass("bundles")} inline-flex items-center gap-2`}><Boxes size={13} /> Bundle</button>
               <button type="button" onClick={() => setActiveTab("orders")} className={tabClass("orders")}>คำสั่งซื้อ</button>
               <button type="button" onClick={() => setActiveTab("testimonials")} className={`${tabClass("testimonials")} inline-flex items-center gap-2`}><MessageSquareQuote size={13} /> เสียงผู้เรียน</button>
+              <button type="button" onClick={() => setActiveTab("notifications")} className={`${tabClass("notifications")} inline-flex items-center gap-2`}><BellRing size={13} /> ประกาศ</button>
             </nav>
           </header>
 
@@ -184,6 +271,35 @@ export default function Admin() {
             </div>
           )}
 
+          {activeTab === "bundles" && (
+            <div className="grid gap-8 py-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+              <section className="order-2 xl:order-1">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div><div className="eyebrow text-[#d5ff45]">Package commerce</div><h2 className="font-display mt-2 text-3xl tracking-[-0.045em]">Bundle ในร้าน</h2><p className="mt-1 text-xs text-white/48">ผู้ซื้อจ่ายครั้งเดียว แต่สิทธิ์จะปลดล็อกเฉพาะสินค้าทุกชิ้นในชุดหลัง Stripe ยืนยันแล้ว</p></div>
+                  <button type="button" onClick={() => { setEditingBundleSlug(null); setBundleForm(emptyBundleForm()); }} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/16 px-4 py-2 text-[10px] font-bold tracking-[0.1em] transition hover:border-white/40"><PackagePlus size={14} /> สร้าง Bundle</button>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-[1.4fr_.6fr_.55fr_.7fr] gap-3 border-b border-white/10 bg-white/[0.03] px-5 py-3 text-[9px] font-bold tracking-[0.13em] text-white/42"><span>ชุดสินค้า</span><span>จำนวน</span><span>สถานะ</span><span className="text-right">จัดการ</span></div>
+                  {bundles.isLoading ? <div className="grid h-48 place-items-center text-sm text-white/42"><Loader2 className="animate-spin" size={18} /></div> : bundles.data?.length ? bundles.data.map((bundle) => <div key={bundle.slug} className="grid grid-cols-[1.4fr_.6fr_.55fr_.7fr] items-center gap-3 border-b border-white/7 px-5 py-4 last:border-0"><div className="flex min-w-0 items-center gap-3"><img src={bundle.coverUrl} alt="" className="h-11 w-9 rounded-md object-cover" /><div className="min-w-0"><div className="truncate text-sm font-semibold">{bundle.title}</div><div className="mt-1 font-mono text-[9px] text-white/42">{formatCurrency(bundle.priceSatang)}</div></div></div><span className="text-xs text-white/62">{bundle.includedProductIds.length} สินค้า</span><span className={`w-fit rounded-full px-2 py-1 text-[9px] font-bold ${bundle.status === "published" ? "bg-lime-300/14 text-lime-200" : bundle.status === "draft" ? "bg-amber-300/14 text-amber-200" : "bg-white/10 text-white/52"}`}>{bundle.status === "published" ? "เผยแพร่" : bundle.status === "draft" ? "ฉบับร่าง" : "เก็บถาวร"}</span><button type="button" onClick={() => openBundleEdit(bundle.slug)} className="justify-self-end rounded-lg border border-white/12 px-3 py-2 text-[9px] font-bold tracking-[0.08em] text-white/75 transition hover:border-white/35">แก้ไข</button></div>) : <div className="grid min-h-48 place-items-center p-7 text-center text-sm text-white/48">ยังไม่มี Bundle — เริ่มจัดชุดสินค้าที่ช่วยให้ผู้เรียนเลือกเส้นทางได้ง่ายขึ้น</div>}
+                </div>
+              </section>
+              <aside className="order-1 rounded-2xl border border-white/10 bg-white/[0.025] p-5 xl:order-2">
+                <div className="flex items-start justify-between gap-3"><div><div className="eyebrow text-[#d5ff45]">{editingBundleSlug ? "แก้ไข Bundle" : "สร้าง Bundle"}</div><h2 className="font-display mt-2 text-3xl tracking-[-0.045em]">{editingBundleSlug ? bundleForm.title || "Bundle" : "ชุดใหม่"}</h2></div>{editingBundleSlug && <button type="button" onClick={() => { setEditingBundleSlug(null); setBundleForm(emptyBundleForm()); }} className="grid h-8 w-8 place-items-center rounded-full border border-white/12 text-white/60"><X size={15} /></button>}</div>
+                <div className="mt-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-3"><label className="admin-field">สถานะ<select value={bundleForm.status} onChange={(event) => patchBundle({ status: event.target.value as ProductStatus })}><option value="draft">ฉบับร่าง</option><option value="published">เผยแพร่</option><option value="archived">เก็บถาวร</option></select></label><label className="admin-field">ราคา Bundle (บาท)<input type="number" min="5" value={bundleForm.priceBaht} onChange={(event) => patchBundle({ priceBaht: event.target.value })} /></label></div>
+                  <label className="admin-field">Slug (ห้ามเปลี่ยนหลังบันทึก)<input value={bundleForm.slug} disabled={Boolean(editingBundleSlug)} onChange={(event) => patchBundle({ slug: event.target.value.toLowerCase().replace(/\s+/g, "-") })} placeholder="focus-foundation" /></label>
+                  <label className="admin-field">ชื่อ Bundle<input value={bundleForm.title} onChange={(event) => patchBundle({ title: event.target.value })} placeholder="เช่น ชุดตั้งหลักโฟกัส" /></label>
+                  <label className="admin-field">คำโปรย<input value={bundleForm.subtitle} onChange={(event) => patchBundle({ subtitle: event.target.value })} placeholder="สิ่งที่ผู้เรียนจะได้ในชุดนี้" /></label>
+                  <label className="admin-field">รายละเอียด<textarea rows={3} value={bundleForm.description} onChange={(event) => patchBundle({ description: event.target.value })} placeholder="อธิบายเส้นทางและความคุ้มค่าของชุด" /></label>
+                  <label className="admin-field">หมวดหมู่<input value={bundleForm.category} onChange={(event) => patchBundle({ category: event.target.value })} placeholder="เช่น การทำงานเชิงกลยุทธ์" /></label>
+                  <div className="rounded-xl border border-dashed border-white/16 p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-xs font-bold">รูปปก Bundle</div><p className="mt-1 text-[10px] leading-4 text-white/45">PNG, JPG หรือ WebP ขนาดไม่เกิน 3 MB</p></div><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/14 px-3 py-2 text-[9px] font-bold tracking-[0.08em] transition hover:border-white/35"><Upload size={13} /> {uploadBundleCover.isPending ? "กำลังอัปโหลด" : "อัปโหลด"}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleBundleCoverFile} /></label></div>{bundleForm.coverUrl && <div className="mt-3 flex gap-3"><img src={bundleForm.coverUrl} alt="ตัวอย่างรูปปก Bundle" className="h-16 w-12 rounded-md object-cover" /><input className="min-w-0 flex-1 rounded-lg border border-white/12 bg-black/20 px-3 text-[10px] text-white/62" value={bundleForm.coverUrl} onChange={(event) => patchBundle({ coverUrl: event.target.value })} /></div>}</div>
+                  <fieldset className="rounded-xl border border-white/10 p-4"><legend className="px-1 text-xs font-bold">สินค้าใน Bundle <span className="ml-1 text-[#d5ff45]">{bundleForm.productIds.length} รายการ</span></legend><p className="mb-3 text-[10px] leading-4 text-white/45">เลือกอย่างน้อย 2 รายการ และหากเผยแพร่ Bundle สินค้าทุกชิ้นต้องเผยแพร่แล้ว</p><div className="max-h-52 space-y-2 overflow-y-auto pr-1">{products.data?.map((product) => <label key={product.slug} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/8 bg-black/10 px-3 py-2.5 transition hover:border-white/22"><input type="checkbox" checked={bundleForm.productIds.includes(product.slug)} onChange={() => toggleBundleProduct(product.slug)} className="accent-[#d5ff45]" /><img src={product.coverUrl} alt="" className="h-8 w-6 rounded object-cover" /><span className="min-w-0 flex-1 truncate text-xs text-white/78">{product.title}</span><span className="text-[9px] text-white/40">{product.status === "published" ? "เผยแพร่" : "ยังไม่เผยแพร่"}</span></label>)}</div></fieldset>
+                  <button type="button" disabled={isSavingBundle || uploadBundleCover.isPending} onClick={submitBundle} className="gradient-cta flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[0.1em] text-black disabled:opacity-60"><Save size={14} /> {isSavingBundle ? "กำลังบันทึก…" : editingBundleSlug ? "บันทึก Bundle" : "สร้าง Bundle"}</button>
+                </div>
+              </aside>
+            </div>
+          )}
+
           {activeTab === "orders" && (
             <section className="py-8">
               <div className="mb-5"><div className="eyebrow text-[#d5ff45]">สิทธิ์ที่ได้รับการยืนยันแล้ว</div><h2 className="font-display mt-3 text-4xl tracking-[-0.05em]">คำสั่งซื้อ</h2><p className="mt-2 text-sm text-white/52">แสดงเฉพาะสินค้าที่ Stripe ยืนยันการชำระเงินและปลดล็อกสิทธิ์เรียบร้อยแล้ว</p></div>
@@ -204,6 +320,20 @@ export default function Admin() {
                     </div>
                   </article>
                 )) : <div className="grid min-h-52 place-items-center rounded-2xl border border-dashed border-white/14 bg-white/[.018] p-7 text-center"><div><MessageSquareQuote className="mx-auto text-[#d5ff45]" size={24} /><h3 className="font-display mt-4 text-3xl">ยังไม่มีเสียงจากผู้เรียน</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/48">เมื่อผู้ซื้อส่งประสบการณ์จริงพร้อม consent ข้อความจะมาปรากฏที่นี่เพื่อให้คุณอนุมัติ ซ่อน หรือปฏิเสธได้</p></div></div>}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "notifications" && (
+            <section className="mx-auto max-w-3xl py-8">
+              <div className="mb-6"><div className="eyebrow text-[#d5ff45]">System communication</div><h2 className="font-display mt-3 text-4xl tracking-[-0.05em]">ส่งประกาศถึงผู้ใช้</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/52">ส่งเฉพาะผู้ใช้ที่เลือกเปิดรับการแจ้งเตือนระบบไว้ โดยระบบจำกัดการส่ง 12 ครั้งต่อชั่วโมงต่อผู้ดูแลเพื่อป้องกัน spam</p></div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+                <div className="space-y-4">
+                  <label className="admin-field">หัวข้อประกาศ<input value={broadcastForm.title} onChange={(event) => setBroadcastForm((current) => ({ ...current, title: event.target.value }))} placeholder="เช่น อัปเดตรายการใหม่ในสัปดาห์นี้" maxLength={180} /></label>
+                  <label className="admin-field">ข้อความ<textarea rows={5} value={broadcastForm.body} onChange={(event) => setBroadcastForm((current) => ({ ...current, body: event.target.value }))} placeholder="อธิบายสิ่งที่ผู้ใช้ควรรู้หรือทำต่อ" maxLength={600} /></label>
+                  <label className="admin-field">ลิงก์ปลายทางภายในเว็บไซต์<input value={broadcastForm.href} onChange={(event) => setBroadcastForm((current) => ({ ...current, href: event.target.value }))} placeholder="/dashboard หรือ /#editions" /><span className="mt-2 block text-[10px] font-normal leading-4 text-white/42">ใช้เฉพาะ path ที่ขึ้นต้นด้วย / เช่น <code>/dashboard</code>, <code>/read/slug</code> หรือ <code>/#editions</code></span></label>
+                  <button type="button" disabled={broadcastNotification.isPending} onClick={submitBroadcast} className="gradient-cta flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[10px] font-extrabold tracking-[0.1em] text-black disabled:opacity-60"><Send size={14} /> {broadcastNotification.isPending ? "กำลังส่ง…" : "ส่งประกาศระบบ"}</button>
+                </div>
               </div>
             </section>
           )}

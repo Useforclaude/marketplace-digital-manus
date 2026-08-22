@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStoreProduct, InsertUser, notifications, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
+import { bundles, bundleItems, InsertStoreProduct, InsertUser, notificationPreferences, notifications, purchases, storeProducts, testimonials, users } from "../drizzle/schema";
 import { defaultProducts } from "./defaultProducts";
 import { ENV } from './_core/env';
 
@@ -101,6 +101,70 @@ export async function listPublishedProducts() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(storeProducts).where(eq(storeProducts.status, "published")).orderBy(desc(storeProducts.createdAt));
+}
+
+type BundleInput = {
+  slug: string;
+  status: "draft" | "published" | "archived";
+  title: string;
+  subtitle: string | null;
+  description: string;
+  category: string;
+  coverUrl: string;
+  priceSatang: number;
+  currency: "thb";
+  productIds: string[];
+};
+
+async function attachBundleItems(sourceBundles: (typeof bundles.$inferSelect)[]) {
+  const db = await getDb();
+  if (!db || sourceBundles.length === 0) return [] as ((typeof bundles.$inferSelect) & { productType: "bundle"; unitCount: number; durationLabel: string; includedProductIds: string[] })[];
+  const items = await db.select().from(bundleItems).where(inArray(bundleItems.bundleSlug, sourceBundles.map((bundle) => bundle.slug)));
+  const byBundle = new Map<string, string[]>();
+  items.forEach((item) => byBundle.set(item.bundleSlug, [...(byBundle.get(item.bundleSlug) ?? []), item.productId]));
+  return sourceBundles.map((bundle) => {
+    const includedProductIds = byBundle.get(bundle.slug) ?? [];
+    return { ...bundle, productType: "bundle" as const, accent: "lime" as const, unitCount: includedProductIds.length, durationLabel: `${includedProductIds.length} รายการ`, includedProductIds };
+  });
+}
+
+export async function listPublishedBundles() {
+  const db = await getDb();
+  if (!db) return [];
+  return attachBundleItems(await db.select().from(bundles).where(eq(bundles.status, "published")).orderBy(desc(bundles.createdAt)));
+}
+
+export async function listAdminBundles() {
+  const db = await getDb();
+  if (!db) return [];
+  return attachBundleItems(await db.select().from(bundles).orderBy(desc(bundles.updatedAt)));
+}
+
+export async function getPublishedBundlesBySlugs(slugs: string[]) {
+  const db = await getDb();
+  if (!db || slugs.length === 0) return [];
+  return attachBundleItems(await db.select().from(bundles).where(and(inArray(bundles.slug, slugs), eq(bundles.status, "published"))));
+}
+
+export async function createBundle({ productIds, ...bundle }: BundleInput & { createdBy: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while creating a bundle.");
+  await db.transaction(async (tx) => {
+    await tx.insert(bundles).values(bundle);
+    await tx.insert(bundleItems).values(productIds.map((productId) => ({ bundleSlug: bundle.slug, productId })));
+  });
+  return (await listAdminBundles()).find((item) => item.slug === bundle.slug);
+}
+
+export async function updateBundle(slug: string, { productIds, ...bundle }: BundleInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating a bundle.");
+  await db.transaction(async (tx) => {
+    await tx.update(bundles).set(bundle).where(eq(bundles.slug, slug));
+    await tx.delete(bundleItems).where(eq(bundleItems.bundleSlug, slug));
+    await tx.insert(bundleItems).values(productIds.map((productId) => ({ bundleSlug: slug, productId })));
+  });
+  return (await listAdminBundles()).find((item) => item.slug === slug);
 }
 
 export async function listAdminProducts() {
@@ -210,12 +274,13 @@ export async function grantPurchaseAccess({
   });
 
   const product = await db.select({ title: storeProducts.title }).from(storeProducts).where(eq(storeProducts.slug, productId)).limit(1);
-  await db.insert(notifications).values({
+  const preferences = await getNotificationPreferences(userId);
+  if (preferences.purchaseEnabled) await db.insert(notifications).values({
     userId,
     kind: "purchase",
     title: "เปิดหมากใหม่ในคลังของคุณแล้ว",
     body: product[0] ? `คุณเปิดสิทธิ์ “${product[0].title}” เรียบร้อยแล้ว` : "การสั่งซื้อของคุณได้รับการยืนยันแล้ว",
-    href: "/dashboard",
+    href: `/read/${productId}`,
   });
 
   return { userId, productId, stripeCheckoutSessionId };
@@ -241,10 +306,27 @@ export async function markAllNotificationsRead(userId: number) {
   return { success: true } as const;
 }
 
+const defaultNotificationPreferences = { productEnabled: true, purchaseEnabled: true, systemEnabled: true } as const;
+
+export async function getNotificationPreferences(userId: number) {
+  const db = await getDb();
+  if (!db) return defaultNotificationPreferences;
+  const result = await db.select({ productEnabled: notificationPreferences.productEnabled, purchaseEnabled: notificationPreferences.purchaseEnabled, systemEnabled: notificationPreferences.systemEnabled }).from(notificationPreferences).where(eq(notificationPreferences.userId, userId)).limit(1);
+  return result[0] ?? defaultNotificationPreferences;
+}
+
+export async function updateNotificationPreferences({ userId, productEnabled, purchaseEnabled, systemEnabled }: { userId: number; productEnabled: boolean; purchaseEnabled: boolean; systemEnabled: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable while updating notification preferences.");
+  await db.insert(notificationPreferences).values({ userId, productEnabled, purchaseEnabled, systemEnabled }).onDuplicateKeyUpdate({ set: { productEnabled, purchaseEnabled, systemEnabled } });
+  return { productEnabled, purchaseEnabled, systemEnabled };
+}
+
 export async function createNotificationsForAllUsers({ kind, title, body, href }: { kind: "product" | "system"; title: string; body: string; href: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable while creating notifications.");
-  const recipients = await db.select({ id: users.id }).from(users);
+  const candidates = await db.select({ id: users.id, productEnabled: notificationPreferences.productEnabled, systemEnabled: notificationPreferences.systemEnabled }).from(users).leftJoin(notificationPreferences, eq(users.id, notificationPreferences.userId));
+  const recipients = candidates.filter((recipient) => kind === "product" ? recipient.productEnabled !== false : recipient.systemEnabled !== false);
   if (recipients.length === 0) return { recipients: 0 };
   await db.insert(notifications).values(recipients.map((recipient) => ({ userId: recipient.id, kind, title, body, href })));
   return { recipients: recipients.length };

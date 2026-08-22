@@ -30,7 +30,15 @@ vi.mock("@/lib/trpc", () => ({
         useMutation: () => ({ mutate: vi.fn(), isPending: false }),
       },
     },
-    useUtils: () => ({ testimonials: { listMine: { invalidate: vi.fn() } } }),
+    notifications: {
+      preferences: {
+        useQuery: () => ({ data: { productEnabled: true, purchaseEnabled: true, systemEnabled: true }, isLoading: false }),
+      },
+      updatePreferences: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
+    },
+    useUtils: () => ({ testimonials: { listMine: { invalidate: vi.fn() } }, notifications: { preferences: { invalidate: vi.fn() } } }),
   },
 }));
 

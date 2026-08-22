@@ -13,6 +13,15 @@ export type StoreProduct = {
   durationLabel: string;
 };
 
+export type StoreBundle = Omit<StoreProduct, "productType" | "durationLabel" | "accent"> & {
+  productType: "bundle";
+  durationLabel: string;
+  accent: "lime";
+  includedProductIds: string[];
+};
+
+export type SellableProduct = StoreProduct | StoreBundle;
+
 export function formatCurrencyFromSatang(value: number, currency = "thb") {
   return new Intl.NumberFormat("th-TH", {
     style: "currency",

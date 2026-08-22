@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { getPublishedProductsBySlugs } from "./db";
+import { getPublishedBundlesBySlugs, getPublishedProductsBySlugs } from "./db";
 
 export type CheckoutItemInput = {
   productId: string;
@@ -28,23 +28,31 @@ export async function validateCheckoutItems(items: CheckoutItemInput[]) {
 
   if (normalized.size === 0) throw new Error("ตะกร้าสินค้าว่างอยู่");
 
-  const products = await getPublishedProductsBySlugs(Array.from(normalized.keys()));
-  if (products.length !== normalized.size) throw new Error("มีสินค้าที่ไม่พร้อมจำหน่ายอยู่ในตะกร้า");
+  const requestedIds = Array.from(normalized.keys());
+  const [products, bundles] = await Promise.all([getPublishedProductsBySlugs(requestedIds), getPublishedBundlesBySlugs(requestedIds)]);
+  if (products.length + bundles.length !== normalized.size) throw new Error("มีสินค้าที่ไม่พร้อมจำหน่ายอยู่ในตะกร้า");
   const productBySlug = new Map(products.map((product) => [product.slug, product]));
+  const bundleBySlug = new Map(bundles.map((bundle) => [bundle.slug, bundle]));
 
   return Array.from(normalized.entries()).map(([productId, quantity]) => {
-    const product = productBySlug.get(productId)!;
+    const product = productBySlug.get(productId);
+    const bundle = bundleBySlug.get(productId);
+    const sellable = product ?? bundle;
+    if (!sellable) throw new Error("มีสินค้าที่ไม่พร้อมจำหน่ายอยู่ในตะกร้า");
+    const entitlementProductIds = product ? [product.slug] : bundle!.includedProductIds;
+    if (entitlementProductIds.length === 0) throw new Error("Bundle นี้ยังไม่มีสินค้าอยู่ภายใน");
     return {
       price_data: {
-        currency: product.currency,
+        currency: sellable.currency,
         product_data: {
-          name: product.title,
-          description: product.subtitle ?? product.description,
+          name: sellable.title,
+          description: sellable.subtitle ?? sellable.description,
         },
-        unit_amount: product.priceSatang,
+        unit_amount: sellable.priceSatang,
       },
       quantity,
       productId,
+      entitlementProductIds: entitlementProductIds.flatMap((id) => Array.from({ length: quantity }, () => id)),
     };
   });
 }
@@ -59,7 +67,7 @@ export async function createCheckoutSession({
   origin: string;
 }) {
   const lineItems = await validateCheckoutItems(items);
-  const productIds = lineItems.map((item) => item.productId);
+  const productIds = Array.from(new Set(lineItems.flatMap((item) => item.entitlementProductIds)));
   const stripe = getStripeClient();
 
   const session = await stripe.checkout.sessions.create({
@@ -73,7 +81,7 @@ export async function createCheckoutSession({
       customer_name: user.name ?? "",
       product_ids: JSON.stringify(productIds),
     },
-    line_items: lineItems.map(({ productId: _productId, ...lineItem }) => lineItem),
+    line_items: lineItems.map(({ productId: _productId, entitlementProductIds: _entitlements, ...lineItem }) => lineItem),
     success_url: `${origin}/library?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?checkout=cancelled`,
   });
