@@ -137,3 +137,43 @@
   .reveal { opacity: 1; transform: none; animation: none; }
   .detail-enter, .detail-preview-card { opacity: 1; transform: none; animation: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Paper Edition — storefront revamp (design/storefront-revamp)
+   Warm print-editorial system: cream paper, warm ink, one
+   vermillion accent reserved for commitment moments.
+   ───────────────────────────────────────────────────────────── */
+.v2-paper { background-color: #f5efe3; color: #211c14; }
+.v2-serif { font-family: "Trirong", "Playfair Display", Georgia, serif; }
+.v2-sans { font-family: "Anuphan", "Manrope", system-ui, sans-serif; }
+.v2-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+.v2-accent { color: #c8431d; }
+.v2-frame { border: 1.5px solid #211c14; border-radius: 3px; box-shadow: 10px 10px 0 rgba(33, 28, 20, 0.14); }
+.v2-card {
+  background: #fdfaf3;
+  border: 1px solid rgba(33, 28, 20, 0.22);
+  border-radius: 3px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.v2-card:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 #211c14; border-color: #211c14; }
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 3px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.v2-btn:active { transform: translate(1px, 1px); }
+.v2-btn-accent { background: #c8431d; color: #fdf6ea; }
+.v2-btn-accent:hover { background: #a83514; }
+.v2-btn-ink { background: #211c14; color: #f5efe3; }
+.v2-btn-ink:hover { background: #3a3125; }
+.v2-btn-ghost { border: 1px solid rgba(33, 28, 20, 0.4); color: #211c14; background: transparent; }
+.v2-btn-ghost:hover { border-color: #211c14; background: rgba(33, 28, 20, 0.05); }
+.v2-link-underline { text-decoration: underline; text-decoration-color: rgba(200, 67, 29, 0.5); text-underline-offset: 4px; }
+.v2-link-underline:hover { text-decoration-color: #c8431d; }
+.v2-paper ::selection { background: #c8431d; color: #fdf6ea; }
