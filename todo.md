@@ -123,4 +123,4 @@
 - [x] Add privacy-aware social sharing actions for product and Bundle detail pages, with native share/copy fallback and social platform links.
 - [x] Refine Product Detail loading motion and preview-content presentation for clearer, more engaging reading on desktop and mobile.
 - [x] Add focused tests and responsive verification for sharing and Product Detail motion, then commit, push, and save a checkpoint.
-- [ ] Add focused Product Detail loading-skeleton and preview-presentation rendering tests, then commit, push, and save a checkpoint.
+- [x] Add focused Product Detail loading-skeleton and preview-presentation rendering tests, then commit, push, and save a checkpoint.
